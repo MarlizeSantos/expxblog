@@ -10,6 +10,8 @@ import { FeaturedSection } from '@/components/blog/FeaturedSection'
 import { PostCardBusiness } from '@/components/blog/PostCardBusiness'
 import { CategorySection } from '@/components/blog/CategorySection'
 import { NewsSidebar } from '@/components/blog/NewsSidebar'
+import { TechHero } from '@/components/blog/TechHero'
+import { PostCardTech } from '@/components/blog/PostCardTech'
 import { db } from '@/drizzle/db'
 import { posts, postCategories, categories } from '@/drizzle/schema'
 import { eq, desc, and, asc } from 'drizzle-orm'
@@ -107,6 +109,7 @@ export default async function HomePage({
     template === 'portal' ? '10' :
     template === 'business' ? '12' :
     template === 'news' ? '0' :
+    template === 'tech' ? '0' :
     '9'
   const [postsData, categoriesData] = await Promise.all([
     getPosts({ page: searchParams.page ?? '1', limit: pageLimit, ...searchParams }),
@@ -169,6 +172,51 @@ export default async function HomePage({
         <Suspense>
           <Pagination currentPage={postsData.page} totalPages={postsData.pages} />
         </Suspense>
+      </div>
+    )
+  }
+
+  if (template === 'tech') {
+    const sections = await getNewsSections()
+    const heroPosts = sections.flatMap((s) => s.posts).slice(0, 3)
+    const heroIds = new Set(heroPosts.map((p) => p.id))
+    return (
+      <div>
+        <TechHero posts={heroPosts} />
+        {sections.length === 0 && (
+          <p className="text-gray-500">Nenhum post publicado ainda.</p>
+        )}
+        {sections.map(({ category, posts: sectionPosts }) => {
+          const filtered = sectionPosts.filter((p) => !heroIds.has(p.id))
+          if (filtered.length === 0) return null
+          return (
+            <section key={category.id} className="mb-10">
+              <div className="flex items-center justify-between mb-4">
+                <div className="flex items-center gap-3">
+                  <div
+                    className="w-1 h-5 rounded-full"
+                    style={{ backgroundColor: 'var(--color-secondary)' }}
+                  />
+                  <h2 className="text-sm font-bold text-neutral-900 uppercase tracking-widest">
+                    {category.name}
+                  </h2>
+                </div>
+                <a
+                  href={`/categoria/${category.slug}`}
+                  className="text-xs font-semibold uppercase tracking-wide transition-opacity hover:opacity-60"
+                  style={{ color: 'var(--color-secondary)' }}
+                >
+                  Ver mais →
+                </a>
+              </div>
+              <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
+                {filtered.map((post) => (
+                  <PostCardTech key={post.id} post={post} variant="card" />
+                ))}
+              </div>
+            </section>
+          )
+        })}
       </div>
     )
   }

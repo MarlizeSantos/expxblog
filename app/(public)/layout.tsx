@@ -2,6 +2,7 @@ import { Header } from '@/components/layout/Header'
 import { PortalHeader } from '@/components/layout/PortalHeader'
 import { BusinessHeader } from '@/components/layout/BusinessHeader'
 import { NewsHeader } from '@/components/layout/NewsHeader'
+import { TechHeader } from '@/components/layout/TechHeader'
 import { Footer } from '@/components/layout/Footer'
 import { NewsletterSection } from '@/components/blog/NewsletterSection'
 import { getSettings } from '@/lib/settings'
@@ -32,11 +33,13 @@ export default async function PublicLayout({ children }: { children: React.React
           ? <BusinessHeader blogName={blogName} logoUrl={logoUrl} />
           : template === 'news'
             ? <NewsHeader blogName={blogName} logoUrl={logoUrl} />
-            : <Header blogName={blogName} logoUrl={logoUrl} />
+            : template === 'tech'
+              ? <TechHeader blogName={blogName} logoUrl={logoUrl} />
+              : <Header blogName={blogName} logoUrl={logoUrl} />
       }
       <main
         className={`flex-1 w-full mx-auto px-4 py-8 ${
-          template === 'portal' || template === 'business' || template === 'news'
+          template === 'portal' || template === 'business' || template === 'news' || template === 'tech'
             ? 'max-w-7xl'
             : 'max-w-6xl'
         }`}
@@ -45,7 +48,7 @@ export default async function PublicLayout({ children }: { children: React.React
       </main>
       {newsletter.enabled && (
         <div className={`w-full mx-auto px-4 ${
-          template === 'portal' || template === 'business' || template === 'news'
+          template === 'portal' || template === 'business' || template === 'news' || template === 'tech'
             ? 'max-w-7xl'
             : 'max-w-6xl'
         }`}>

@@ -129,6 +129,53 @@ const TEMPLATE_OPTIONS = [
     ),
   },
   {
+    id: 'tech',
+    name: 'Tech',
+    description: 'Estilo editorial tech com header escuro, hero em destaque e seções por categoria',
+    preview: (
+      <svg viewBox="0 0 240 160" className="w-full" xmlns="http://www.w3.org/2000/svg">
+        {/* Dark header */}
+        <rect x="0" y="0" width="240" height="20" fill="#111111" rx="3" />
+        <rect x="8" y="6" width="44" height="8" fill="white" rx="2" />
+        <rect x="64" y="8" width="16" height="4" fill="white" opacity="0.5" rx="1" />
+        <rect x="86" y="8" width="20" height="4" fill="white" opacity="0.5" rx="1" />
+        <rect x="112" y="8" width="18" height="4" fill="white" opacity="0.5" rx="1" />
+        <rect x="186" y="6" width="46" height="8" fill="white" opacity="0.15" rx="3" />
+        {/* Hero: large featured left */}
+        <rect x="0" y="24" width="155" height="72" fill="#555" rx="2" />
+        <rect x="0" y="72" width="155" height="24" fill="black" opacity="0.55" rx="2" />
+        <rect x="6" y="66" width="30" height="5" fill="#00B140" rx="1" />
+        <rect x="6" y="74" width="142" height="7" fill="white" rx="2" />
+        <rect x="6" y="84" width="80" height="4" fill="white" opacity="0.5" rx="1" />
+        {/* Hero: 2 secondary right */}
+        <rect x="159" y="24" width="81" height="33" fill="white" rx="2" />
+        <rect x="159" y="24" width="24" height="33" fill="#e5e7eb" rx="2" />
+        <rect x="187" y="29" width="50" height="4" fill="#d1d5db" rx="1" />
+        <rect x="187" y="36" width="36" height="3" fill="#e5e7eb" rx="1" />
+        <rect x="159" y="61" width="81" height="33" fill="white" rx="2" />
+        <rect x="159" y="61" width="24" height="33" fill="#e5e7eb" rx="2" />
+        <rect x="187" y="66" width="50" height="4" fill="#d1d5db" rx="1" />
+        <rect x="187" y="73" width="36" height="3" fill="#e5e7eb" rx="1" />
+        {/* Category section heading */}
+        <rect x="0" y="101" width="3" height="7" fill="#00B140" rx="1" />
+        <rect x="7" y="103" width="40" height="4" fill="#1a1a2e" rx="1" />
+        <rect x="186" y="102" width="20" height="5" fill="#00B140" opacity="0.5" rx="1" />
+        {/* 3-col cards */}
+        <rect x="0" y="112" width="73" height="38" fill="white" rx="2" />
+        <rect x="0" y="112" width="73" height="20" fill="#e5e7eb" rx="2" />
+        <rect x="2" y="135" width="50" height="4" fill="#d1d5db" rx="1" />
+        <rect x="83" y="112" width="73" height="38" fill="white" rx="2" />
+        <rect x="83" y="112" width="73" height="20" fill="#e5e7eb" rx="2" />
+        <rect x="85" y="135" width="50" height="4" fill="#d1d5db" rx="1" />
+        <rect x="166" y="112" width="74" height="38" fill="white" rx="2" />
+        <rect x="166" y="112" width="74" height="20" fill="#e5e7eb" rx="2" />
+        <rect x="168" y="135" width="50" height="4" fill="#d1d5db" rx="1" />
+        {/* Footer */}
+        <rect x="0" y="152" width="240" height="8" fill="#111111" rx="2" />
+      </svg>
+    ),
+  },
+  {
     id: 'news',
     name: 'News',
     description: 'Estilo portal de notícias com seções por categoria e sidebar de destaques',
@@ -213,6 +260,7 @@ const DEFAULT_COLORS: Record<string, ThemeColors> = {
   portal: { primary: '#CC0000', secondary: '#FF6600', background: '#F5F5F5', surface: '#FFFFFF' },
   business: { primary: '#0D1B4B', secondary: '#FF6B35', background: '#F7F8FA', surface: '#FFFFFF' },
   news: { primary: '#003580', secondary: '#E8002D', background: '#F2F2F2', surface: '#FFFFFF' },
+  tech: { primary: '#111111', secondary: '#00B140', background: '#F4F4F4', surface: '#FFFFFF' },
 }
 
 export function ApparenceClient({ initial }: Props) {
