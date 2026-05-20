@@ -1,5 +1,6 @@
 import type { Metadata } from 'next'
 import './globals.css'
+import { getSettings } from '@/lib/settings'
 
 export const metadata: Metadata = {
   title: {
@@ -10,10 +11,23 @@ export const metadata: Metadata = {
   metadataBase: new URL(process.env.NEXT_PUBLIC_APP_URL ?? 'http://localhost:3000'),
 }
 
-export default function RootLayout({ children }: { children: React.ReactNode }) {
+export default async function RootLayout({ children }: { children: React.ReactNode }) {
+  const { template, colors } = await getSettings()
+
+  const cssVars = `:root{--color-primary:${colors.primary};--color-secondary:${colors.secondary};--color-bg:${colors.background};--color-surface:${colors.surface};}`
+
   return (
     <html lang="pt-BR">
-      <body className="bg-gray-50 text-neutral-900 antialiased">{children}</body>
+      <head>
+        <style dangerouslySetInnerHTML={{ __html: cssVars }} />
+      </head>
+      <body
+        className="text-neutral-900 antialiased"
+        style={{ backgroundColor: 'var(--color-bg)' }}
+        data-template={template}
+      >
+        {children}
+      </body>
     </html>
   )
 }

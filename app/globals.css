@@ -13,6 +13,13 @@
   --space-base: 4px;
 }
 
+:root {
+  --color-primary: #1A4FA0;
+  --color-secondary: #F58A2D;
+  --color-bg: #F9FAFB;
+  --color-surface: #FFFFFF;
+}
+
 * {
   box-sizing: border-box;
 }
