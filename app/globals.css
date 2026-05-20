@@ -15,7 +15,11 @@
 
 :root {
   --color-primary: #1A4FA0;
+  --color-primary-dark: #153d80;
+  --color-primary-light: #e8eef8;
   --color-secondary: #F58A2D;
+  --color-secondary-dark: #d4751f;
+  --color-secondary-light: #fef3e8;
   --color-bg: #F9FAFB;
   --color-surface: #FFFFFF;
 }

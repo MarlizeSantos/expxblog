@@ -65,7 +65,7 @@ export function ImageUpload({ value, onChange }: ImageUploadProps) {
           type="button"
           onClick={() => inputRef.current?.click()}
           disabled={uploading}
-          className="w-full aspect-video border-2 border-dashed border-gray-300 rounded-lg flex flex-col items-center justify-center gap-2 hover:border-brand-primary hover:bg-brand-primary/5 transition-colors text-gray-400 hover:text-brand-primary"
+          className="w-full aspect-video border-2 border-dashed border-gray-300 rounded-lg flex flex-col items-center justify-center gap-2 hover:border-brand-primary hover:bg-brand-primary-light transition-colors text-gray-400 hover:text-brand-primary"
         >
           {uploading ? (
             <>

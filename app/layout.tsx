@@ -1,6 +1,6 @@
 import type { Metadata } from 'next'
 import './globals.css'
-import { getSettings } from '@/lib/settings'
+import { getSettings, darkenHex, lightenHex } from '@/lib/settings'
 
 export const metadata: Metadata = {
   title: {
@@ -14,7 +14,16 @@ export const metadata: Metadata = {
 export default async function RootLayout({ children }: { children: React.ReactNode }) {
   const { template, colors } = await getSettings()
 
-  const cssVars = `:root{--color-primary:${colors.primary};--color-secondary:${colors.secondary};--color-bg:${colors.background};--color-surface:${colors.surface};}`
+  const cssVars = `:root{` +
+    `--color-primary:${colors.primary};` +
+    `--color-primary-dark:${darkenHex(colors.primary)};` +
+    `--color-primary-light:${lightenHex(colors.primary)};` +
+    `--color-secondary:${colors.secondary};` +
+    `--color-secondary-dark:${darkenHex(colors.secondary)};` +
+    `--color-secondary-light:${lightenHex(colors.secondary)};` +
+    `--color-bg:${colors.background};` +
+    `--color-surface:${colors.surface};` +
+    `}`
 
   return (
     <html lang="pt-BR">
