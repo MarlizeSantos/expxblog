@@ -14,7 +14,7 @@ interface Post {
 
 function formatDate(d: string | null) {
   if (!d) return ''
-  return new Date(d).toLocaleDateString('pt-BR', { day: '2-digit', month: 'short' })
+  return new Date(d).toLocaleDateString('pt-BR', { day: '2-digit', month: 'short', year: 'numeric' })
 }
 
 interface Props {
@@ -83,7 +83,7 @@ export function PostCardNews({ post, variant = 'card', rank }: Props) {
           {post.title}
         </h3>
         <p className="text-xs text-gray-400 mt-2">
-          {formatDate(post.published_at)} · {readTime} min
+          {formatDate(post.published_at)} · {readTime} min de leitura
         </p>
       </div>
     </Link>
