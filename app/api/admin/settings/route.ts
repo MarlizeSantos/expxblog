@@ -158,7 +158,9 @@ export async function PUT(request: Request) {
     const current = await getSettings()
     return NextResponse.json(current)
   } catch (err) {
-    console.error('[settings PUT] error:', err)
-    return NextResponse.json({ error: 'Erro interno do servidor' }, { status: 500 })
+    const msg = err instanceof Error ? err.message : String(err)
+    const code = (err as Record<string, unknown>)?.code
+    console.error('[settings PUT] error msg:', msg, 'code:', code)
+    return NextResponse.json({ error: 'Erro interno do servidor', detail: msg }, { status: 500 })
   }
 }
