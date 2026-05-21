@@ -1,6 +1,6 @@
 'use client'
 
-import { useState, useEffect } from 'react'
+import { useState, useEffect, useRef } from 'react'
 import { useRouter } from 'next/navigation'
 
 type Step = 1 | 2 | 3 | 4 | 5 | 6
@@ -35,6 +35,7 @@ export default function SetupPage() {
   const [error, setError] = useState('')
   const [deploymentId, setDeploymentId] = useState('')
   const [deployUrl, setDeployUrl] = useState('')
+  const pollIntervalRef = useRef<ReturnType<typeof setInterval> | null>(null)
 
   const [state, setState] = useState<SetupState>({
     vercelToken: '',
@@ -154,18 +155,19 @@ export default function SetupPage() {
   }
 
   function pollDeployStatus(depId: string) {
-    const interval = setInterval(async () => {
+    if (pollIntervalRef.current) clearInterval(pollIntervalRef.current)
+    pollIntervalRef.current = setInterval(async () => {
       try {
         const res = await fetch(
           `/api/setup/deploy-status?deploymentId=${depId}&vercelToken=${encodeURIComponent(state.vercelToken)}`
         )
         const data = await res.json()
         if (data.state === 'READY') {
-          clearInterval(interval)
+          clearInterval(pollIntervalRef.current!)
           if (data.url) setDeployUrl(data.url)
           setStep(6)
         } else if (data.state === 'ERROR' || data.state === 'CANCELED') {
-          clearInterval(interval)
+          clearInterval(pollIntervalRef.current!)
           setError('O redeploy falhou. Acesse o painel da Vercel para mais detalhes. As configurações já foram salvas — basta fazer um redeploy manual.')
         }
       } catch {
@@ -180,6 +182,12 @@ export default function SetupPage() {
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [step])
+
+  useEffect(() => {
+    return () => {
+      if (pollIntervalRef.current) clearInterval(pollIntervalRef.current)
+    }
+  }, [])
 
   return (
     <div className="min-h-screen bg-gray-50 flex flex-col items-center justify-center p-4">
