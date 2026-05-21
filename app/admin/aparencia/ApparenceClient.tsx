@@ -1,8 +1,10 @@
 'use client'
 
 import { useState } from 'react'
-import type { SiteSettings, ThemeColors } from '@/lib/settings'
+import type { SiteSettings, ThemeColors, DesignSystem } from '@/lib/settings'
+import { DEFAULT_DESIGN_SYSTEM } from '@/lib/settings'
 import { ImageUpload } from '@/components/ui/ImageUpload'
+import { DesignSystemImporter } from './DesignSystemImporter'
 
 interface Props {
   initial: SiteSettings
@@ -269,6 +271,19 @@ export function ApparenceClient({ initial }: Props) {
   const [logoUrl, setLogoUrl] = useState(initial.company.logo_url)
   const [saving, setSaving] = useState(false)
   const [toast, setToast] = useState<{ type: 'success' | 'error'; msg: string } | null>(null)
+  const [designSystem, setDesignSystem] = useState<DesignSystem>(initial.design_system)
+
+  function handleDSChange(key: keyof DesignSystem, value: string) {
+    setDesignSystem((prev) => ({ ...prev, [key]: value }))
+  }
+
+  function handleDSReset(key: keyof DesignSystem) {
+    setDesignSystem((prev) => ({ ...prev, [key]: DEFAULT_DESIGN_SYSTEM[key] }))
+  }
+
+  function handleImportApply(tokens: Partial<DesignSystem>) {
+    setDesignSystem((prev) => ({ ...prev, ...tokens }))
+  }
 
   function handleTemplateChange(id: string) {
     setTemplate(id)
@@ -293,7 +308,7 @@ export function ApparenceClient({ initial }: Props) {
       const res = await fetch('/api/admin/settings', {
         method: 'PUT',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ template, colors, company: { logo_url: logoUrl } }),
+        body: JSON.stringify({ template, colors, company: { logo_url: logoUrl }, design_system: designSystem }),
       })
       if (!res.ok) throw new Error('Falha ao salvar')
       setToast({ type: 'success', msg: 'Configurações salvas! Recarregue a página para ver o novo tema.' })
@@ -367,6 +382,12 @@ export function ApparenceClient({ initial }: Props) {
         </div>
       </section>
 
+      {/* Design System Importer */}
+      <section className="mb-8">
+        <h2 className="text-lg font-semibold text-neutral-900 mb-2">Importar design do site</h2>
+        <DesignSystemImporter onApply={handleImportApply} />
+      </section>
+
       {/* Color customizer */}
       <section>
         <h2 className="text-lg font-semibold text-neutral-900 mb-4">Cores</h2>
@@ -398,6 +419,143 @@ export function ApparenceClient({ initial }: Props) {
                   className="text-xs text-gray-400 hover:text-brand-primary transition-colors"
                   title="Restaurar padrão"
                 >
+                  Padrão
+                </button>
+              </div>
+            </div>
+          ))}
+        </div>
+      </section>
+
+      {/* Typography */}
+      <section className="mt-8">
+        <h2 className="text-lg font-semibold text-neutral-900 mb-4">Tipografia</h2>
+        <div className="bg-white rounded-xl border border-gray-200 divide-y divide-gray-100">
+          {([
+            { key: 'font_sans' as const, label: 'Fonte principal (sans-serif)', placeholder: 'Inter, system-ui, sans-serif' },
+            { key: 'font_serif' as const, label: 'Fonte de títulos (serif)', placeholder: '"Source Serif 4", Georgia, serif' },
+            { key: 'font_mono' as const, label: 'Fonte de código (mono)', placeholder: '"JetBrains Mono", monospace' },
+          ]).map(({ key, label, placeholder }) => (
+            <div key={key} className="flex items-center justify-between px-5 py-4 gap-4">
+              <div className="flex-1 min-w-0">
+                <p className="text-sm font-medium text-neutral-900">{label}</p>
+                <p className="text-xs text-gray-400 font-mono mt-0.5">{designSystem[key]}</p>
+              </div>
+              <div className="flex items-center gap-2">
+                <input
+                  type="text"
+                  value={designSystem[key]}
+                  onChange={(e) => handleDSChange(key, e.target.value)}
+                  placeholder={placeholder}
+                  className="w-64 text-sm font-mono border border-gray-200 rounded-lg px-2 py-1.5 focus:outline-none focus:ring-2 focus:ring-brand-primary"
+                />
+                <button onClick={() => handleDSReset(key)} className="text-xs text-gray-400 hover:text-brand-primary transition-colors">
+                  Padrão
+                </button>
+              </div>
+            </div>
+          ))}
+        </div>
+      </section>
+
+      {/* Font sizes */}
+      <section className="mt-8">
+        <h2 className="text-lg font-semibold text-neutral-900 mb-4">Tamanhos de fonte</h2>
+        <div className="bg-white rounded-xl border border-gray-200 divide-y divide-gray-100">
+          {([
+            { key: 'font_size_sm' as const, label: 'Pequeno (sm)' },
+            { key: 'font_size_base' as const, label: 'Base' },
+            { key: 'font_size_lg' as const, label: 'Grande (lg)' },
+            { key: 'font_size_xl' as const, label: 'Extra grande (xl)' },
+            { key: 'font_size_2xl' as const, label: '2XL' },
+            { key: 'font_size_3xl' as const, label: '3XL (títulos)' },
+          ]).map(({ key, label }) => (
+            <div key={key} className="flex items-center justify-between px-5 py-3 gap-4">
+              <p className="text-sm font-medium text-neutral-900 w-48">{label}</p>
+              <div className="flex items-center gap-2">
+                <input
+                  type="text"
+                  value={designSystem[key]}
+                  onChange={(e) => handleDSChange(key, e.target.value)}
+                  className="w-28 text-sm font-mono border border-gray-200 rounded-lg px-2 py-1.5 focus:outline-none focus:ring-2 focus:ring-brand-primary"
+                />
+                <button onClick={() => handleDSReset(key)} className="text-xs text-gray-400 hover:text-brand-primary transition-colors">
+                  Padrão
+                </button>
+              </div>
+            </div>
+          ))}
+        </div>
+      </section>
+
+      {/* Border radius */}
+      <section className="mt-8">
+        <h2 className="text-lg font-semibold text-neutral-900 mb-4">Arredondamento (border-radius)</h2>
+        <div className="bg-white rounded-xl border border-gray-200 divide-y divide-gray-100">
+          {([
+            { key: 'radius_sm' as const, label: 'Pequeno (sm)' },
+            { key: 'radius_md' as const, label: 'Médio (md)' },
+            { key: 'radius_lg' as const, label: 'Grande (lg)' },
+            { key: 'radius_full' as const, label: 'Circular (full)' },
+          ]).map(({ key, label }) => (
+            <div key={key} className="flex items-center justify-between px-5 py-3 gap-4">
+              <div className="flex items-center gap-3">
+                <div
+                  className="w-10 h-10 border-2 border-brand-primary shrink-0"
+                  style={{ borderRadius: designSystem[key] }}
+                />
+                <p className="text-sm font-medium text-neutral-900">{label}</p>
+              </div>
+              <div className="flex items-center gap-2">
+                <input
+                  type="text"
+                  value={designSystem[key]}
+                  onChange={(e) => handleDSChange(key, e.target.value)}
+                  className="w-28 text-sm font-mono border border-gray-200 rounded-lg px-2 py-1.5 focus:outline-none focus:ring-2 focus:ring-brand-primary"
+                />
+                <button onClick={() => handleDSReset(key)} className="text-xs text-gray-400 hover:text-brand-primary transition-colors">
+                  Padrão
+                </button>
+              </div>
+            </div>
+          ))}
+        </div>
+      </section>
+
+      {/* Extended colors */}
+      <section className="mt-8 mb-8">
+        <h2 className="text-lg font-semibold text-neutral-900 mb-4">Cores semânticas</h2>
+        <div className="bg-white rounded-xl border border-gray-200 divide-y divide-gray-100">
+          {([
+            { key: 'color_text_primary' as const, label: 'Texto principal' },
+            { key: 'color_text_secondary' as const, label: 'Texto secundário' },
+            { key: 'color_border' as const, label: 'Borda padrão' },
+            { key: 'color_error' as const, label: 'Erro' },
+            { key: 'color_success' as const, label: 'Sucesso' },
+            { key: 'color_warning' as const, label: 'Alerta' },
+          ]).map(({ key, label }) => (
+            <div key={key} className="flex items-center justify-between px-5 py-4 gap-4">
+              <div className="flex-1 min-w-0">
+                <p className="text-sm font-medium text-neutral-900">{label}</p>
+                <p className="text-xs text-gray-400 font-mono mt-0.5">{designSystem[key]}</p>
+              </div>
+              <div className="flex items-center gap-3">
+                <input
+                  type="color"
+                  value={designSystem[key]}
+                  onChange={(e) => handleDSChange(key, e.target.value)}
+                  className="w-10 h-10 rounded cursor-pointer border border-gray-200"
+                />
+                <input
+                  type="text"
+                  value={designSystem[key]}
+                  onChange={(e) => {
+                    const v = e.target.value
+                    if (/^#[0-9A-Fa-f]{0,6}$/.test(v)) handleDSChange(key, v)
+                  }}
+                  className="w-24 text-sm font-mono border border-gray-200 rounded-lg px-2 py-1.5 focus:outline-none focus:ring-2 focus:ring-brand-primary"
+                />
+                <button onClick={() => handleDSReset(key)} className="text-xs text-gray-400 hover:text-brand-primary transition-colors">
                   Padrão
                 </button>
               </div>
