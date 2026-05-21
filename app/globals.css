@@ -477,3 +477,122 @@ body {
 .admin-input::placeholder {
   color: var(--at-input-placeholder, #9ca3af);
 }
+
+/* ════════════════════════════════════════════════════════════
+   ADMIN DARK THEME — override Tailwind hard-coded classes
+   Applies to every element inside the shell when dark is active.
+   Uses !important only where Tailwind utility specificity requires it.
+   ════════════════════════════════════════════════════════════ */
+
+#admin-shell[data-admin-theme="dark"] .bg-white {
+  background-color: #1e2336 !important;
+}
+#admin-shell[data-admin-theme="dark"] .bg-gray-50 {
+  background-color: #1a1f2e !important;
+}
+#admin-shell[data-admin-theme="dark"] .bg-gray-100 {
+  background-color: #252c3f !important;
+}
+#admin-shell[data-admin-theme="dark"] .bg-gray-200 {
+  background-color: #2d3650 !important;
+}
+#admin-shell[data-admin-theme="dark"] .border-gray-100 {
+  border-color: rgba(255,255,255,0.05) !important;
+}
+#admin-shell[data-admin-theme="dark"] .border-gray-200 {
+  border-color: rgba(255,255,255,0.08) !important;
+}
+#admin-shell[data-admin-theme="dark"] .border-gray-300 {
+  border-color: rgba(255,255,255,0.12) !important;
+}
+#admin-shell[data-admin-theme="dark"] .divide-gray-200 > * + * {
+  border-color: rgba(255,255,255,0.08) !important;
+}
+
+/* Text overrides */
+#admin-shell[data-admin-theme="dark"] .text-gray-900,
+#admin-shell[data-admin-theme="dark"] .text-neutral-900 {
+  color: #e2e8f0 !important;
+}
+#admin-shell[data-admin-theme="dark"] .text-gray-800 {
+  color: #cbd5e1 !important;
+}
+#admin-shell[data-admin-theme="dark"] .text-gray-700 {
+  color: #94a3b8 !important;
+}
+#admin-shell[data-admin-theme="dark"] .text-gray-600 {
+  color: #7f8ea8 !important;
+}
+#admin-shell[data-admin-theme="dark"] .text-gray-500 {
+  color: #64748b !important;
+}
+#admin-shell[data-admin-theme="dark"] .text-gray-400 {
+  color: #4e5f76 !important;
+}
+
+/* Hover bg overrides */
+#admin-shell[data-admin-theme="dark"] .hover\:bg-gray-50:hover {
+  background-color: rgba(255,255,255,0.04) !important;
+}
+#admin-shell[data-admin-theme="dark"] .hover\:bg-gray-100:hover {
+  background-color: rgba(255,255,255,0.07) !important;
+}
+
+/* Table header */
+#admin-shell[data-admin-theme="dark"] thead.bg-gray-50,
+#admin-shell[data-admin-theme="dark"] thead .bg-gray-50 {
+  background-color: #161b28 !important;
+}
+#admin-shell[data-admin-theme="dark"] th {
+  color: #94a3b8 !important;
+  border-color: rgba(255,255,255,0.08) !important;
+}
+#admin-shell[data-admin-theme="dark"] td {
+  border-color: rgba(255,255,255,0.05) !important;
+  color: #cbd5e1 !important;
+}
+#admin-shell[data-admin-theme="dark"] tr.hover\:bg-gray-50:hover,
+#admin-shell[data-admin-theme="dark"] tr:hover {
+  background-color: rgba(255,255,255,0.03) !important;
+}
+
+/* Input overrides (non .admin-input ones scattered in pages) */
+#admin-shell[data-admin-theme="dark"] input:not([type="checkbox"]):not([type="radio"]):not([type="range"]):not([type="submit"]),
+#admin-shell[data-admin-theme="dark"] select,
+#admin-shell[data-admin-theme="dark"] textarea {
+  background-color: #1a1f2e !important;
+  border-color: rgba(255,255,255,0.1) !important;
+  color: #e2e8f0 !important;
+}
+#admin-shell[data-admin-theme="dark"] input::placeholder,
+#admin-shell[data-admin-theme="dark"] textarea::placeholder {
+  color: rgba(255,255,255,0.25) !important;
+}
+
+/* Modal / dialog */
+#admin-shell[data-admin-theme="dark"] .shadow-xl.bg-white,
+#admin-shell[data-admin-theme="dark"] [class*="shadow-xl"].bg-white {
+  background-color: #1e2336 !important;
+}
+
+/* Code blocks */
+#admin-shell[data-admin-theme="dark"] code:not(.hljs) {
+  background-color: #252c3f !important;
+  color: #93c5fd !important;
+}
+
+/* Scrollbar (webkit) */
+#admin-shell[data-admin-theme="dark"] ::-webkit-scrollbar {
+  width: 6px;
+  height: 6px;
+}
+#admin-shell[data-admin-theme="dark"] ::-webkit-scrollbar-track {
+  background: transparent;
+}
+#admin-shell[data-admin-theme="dark"] ::-webkit-scrollbar-thumb {
+  background: rgba(255,255,255,0.12);
+  border-radius: 3px;
+}
+#admin-shell[data-admin-theme="dark"] ::-webkit-scrollbar-thumb:hover {
+  background: rgba(255,255,255,0.2);
+}

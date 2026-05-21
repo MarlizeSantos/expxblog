@@ -182,7 +182,7 @@ export default async function AdminLayout({ children }: { children: React.ReactN
         <div className="flex-1 admin-main flex flex-col overflow-hidden">
           <AdminTopBar />
           <div className="flex-1 overflow-y-auto">
-            <div className="max-w-7xl mx-auto p-8">
+            <div className="p-8">
               {children}
             </div>
           </div>
