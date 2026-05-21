@@ -1,10 +1,9 @@
 import { NextResponse } from 'next/server'
 import { z } from 'zod'
-import { client } from '@/drizzle/db'
-import { getSettings } from '@/lib/settings'
-import { eq } from 'drizzle-orm'
 import { db } from '@/drizzle/db'
 import { siteSettings } from '@/drizzle/schema'
+import { getSettings } from '@/lib/settings'
+import { eq, sql } from 'drizzle-orm'
 
 export const dynamic = 'force-dynamic'
 
@@ -60,11 +59,11 @@ const putSchema = z.object({
 })
 
 async function upsertSetting(key: string, value: string) {
-  await client`
-    INSERT INTO site_settings (key, value, updated_at)
-    VALUES (${key}, ${value}, now())
-    ON CONFLICT (key) DO UPDATE SET value = EXCLUDED.value, updated_at = now()
-  `
+  await db.execute(
+    sql`INSERT INTO site_settings (key, value, updated_at)
+        VALUES (${key}, ${value}, now())
+        ON CONFLICT (key) DO UPDATE SET value = EXCLUDED.value, updated_at = now()`
+  )
 }
 
 export async function GET() {
@@ -72,7 +71,7 @@ export async function GET() {
     const settings = await getSettings()
     return NextResponse.json(settings)
   } catch (err) {
-    console.error('[settings GET] error:', err instanceof Error ? err.message : String(err))
+    console.error('[settings GET]', err instanceof Error ? err.message : String(err))
     return NextResponse.json({ error: 'Erro interno do servidor' }, { status: 500 })
   }
 }
@@ -126,18 +125,18 @@ export async function PUT(request: Request) {
         .from(siteSettings)
         .where(eq(siteSettings.key, 'telegram_config'))
         .limit(1)
-      const existing = rows.length > 0 && rows[0].value
-        ? JSON.parse(rows[0].value)
-        : { bot_token: '', allowed_chat_ids: '' }
-      const merged = { ...existing, ...telegram }
-      await upsertSetting('telegram_config', JSON.stringify(merged))
+      const existing =
+        rows.length > 0 && rows[0].value
+          ? JSON.parse(rows[0].value)
+          : { bot_token: '', allowed_chat_ids: '' }
+      await upsertSetting('telegram_config', JSON.stringify({ ...existing, ...telegram }))
     }
 
     const current = await getSettings()
     return NextResponse.json(current)
   } catch (err) {
     const msg = err instanceof Error ? err.message : String(err)
-    console.error('[settings PUT] error:', msg)
+    console.error('[settings PUT]', msg)
     return NextResponse.json({ error: msg || 'Erro interno do servidor' }, { status: 500 })
   }
 }
