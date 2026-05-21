@@ -581,6 +581,41 @@ body {
   color: #93c5fd !important;
 }
 
+/* TipTap / ProseMirror editor — dark mode */
+#admin-shell[data-admin-theme="dark"] .ProseMirror {
+  color: #e2e8f0 !important;
+  background-color: #1e2336 !important;
+}
+#admin-shell[data-admin-theme="dark"] .ProseMirror h1,
+#admin-shell[data-admin-theme="dark"] .ProseMirror h2,
+#admin-shell[data-admin-theme="dark"] .ProseMirror h3,
+#admin-shell[data-admin-theme="dark"] .ProseMirror h4,
+#admin-shell[data-admin-theme="dark"] .ProseMirror h5,
+#admin-shell[data-admin-theme="dark"] .ProseMirror h6 {
+  color: #f1f5f9 !important;
+}
+#admin-shell[data-admin-theme="dark"] .ProseMirror p,
+#admin-shell[data-admin-theme="dark"] .ProseMirror li,
+#admin-shell[data-admin-theme="dark"] .ProseMirror strong,
+#admin-shell[data-admin-theme="dark"] .ProseMirror em {
+  color: #e2e8f0 !important;
+}
+#admin-shell[data-admin-theme="dark"] .ProseMirror blockquote {
+  color: #94a3b8 !important;
+  border-left-color: rgba(255,255,255,0.2) !important;
+}
+#admin-shell[data-admin-theme="dark"] .ProseMirror a {
+  color: #60a5fa !important;
+}
+#admin-shell[data-admin-theme="dark"] .ProseMirror code {
+  background-color: #252c3f !important;
+  color: #93c5fd !important;
+}
+#admin-shell[data-admin-theme="dark"] .ProseMirror pre {
+  background-color: #0f1117 !important;
+  color: #e2e8f0 !important;
+}
+
 /* Scrollbar (webkit) */
 #admin-shell[data-admin-theme="dark"] ::-webkit-scrollbar {
   width: 6px;

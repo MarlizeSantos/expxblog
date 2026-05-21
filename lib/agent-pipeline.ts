@@ -13,6 +13,7 @@ import { AgentContext, AgentId, PipelineEvent, PublisherTriggers } from '@/lib/a
 export interface PipelineOptions {
   themeIds: number[]
   triggers: PublisherTriggers
+  initialContext?: Partial<AgentContext>
 }
 
 function makeEvent(
@@ -36,7 +37,7 @@ export function createPipelineStream(options: PipelineOptions): ReadableStream {
     async start(controller) {
       const send = (chunk: string) => controller.enqueue(new TextEncoder().encode(chunk))
 
-      const ctx: AgentContext = {}
+      const ctx: AgentContext = { ...(options.initialContext ?? {}) }
 
       try {
         const apiKey = await getAIApiKey()
@@ -46,19 +47,23 @@ export function createPipelineStream(options: PipelineOptions): ReadableStream {
           return
         }
 
-        // 1. Headline
-        send(makeEvent('agent_start', 'Gerando headline...', 'headline'))
-        const headlineResult = await runHeadlineAgent(ctx, options.themeIds, apiKey)
-        if (!headlineResult.success) {
-          send(makeEvent('agent_error', headlineResult.message, 'headline'))
-          send(makeEvent('pipeline_error', headlineResult.message))
-          controller.close()
-          return
+        // 1. Headline — skip if already provided via initialContext
+        if (!ctx.headline) {
+          send(makeEvent('agent_start', 'Gerando headline...', 'headline'))
+          const headlineResult = await runHeadlineAgent(ctx, options.themeIds, apiKey)
+          if (!headlineResult.success) {
+            send(makeEvent('agent_error', headlineResult.message, 'headline'))
+            send(makeEvent('pipeline_error', headlineResult.message))
+            controller.close()
+            return
+          }
+          Object.assign(ctx, headlineResult.data)
+          send(makeEvent('agent_done', headlineResult.message, 'headline', { headline: ctx.headline }))
+        } else {
+          send(makeEvent('agent_done', `Headline: "${ctx.headline}"`, 'headline', { headline: ctx.headline }))
         }
-        Object.assign(ctx, headlineResult.data)
-        send(makeEvent('agent_done', headlineResult.message, 'headline', { headline: ctx.headline }))
 
-        // 2. Researcher
+        // 2. Researcher — seed with initialContext.researchLinks if provided
         send(makeEvent('agent_start', 'Pesquisando referências na web...', 'researcher'))
         const researchResult = await runResearcherAgent(ctx, apiKey)
         if (!researchResult.success) {

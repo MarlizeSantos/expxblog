@@ -65,7 +65,8 @@ export async function runResearcherAgent(
     queries = [ctx.headline]
   }
 
-  const allLinks: string[] = []
+  // Seed with any links already provided (e.g. from URL-based generation)
+  const allLinks: string[] = [...(ctx.researchLinks ?? [])]
   for (const q of queries) {
     const links = await duckDuckGoSearch(q)
     for (const l of links) {

@@ -11,6 +11,8 @@ export async function POST(request: NextRequest) {
     publishStatus?: 'draft' | 'published'
     webhookUrl?: string
     sendNewsletter?: boolean
+    headline?: string
+    initialLinks?: string[]
   }
 
   const triggers: PublisherTriggers = {
@@ -22,6 +24,10 @@ export async function POST(request: NextRequest) {
   const stream = createPipelineStream({
     themeIds: body.themeIds ?? [],
     triggers,
+    initialContext: {
+      ...(body.headline ? { headline: body.headline } : {}),
+      ...(body.initialLinks?.length ? { researchLinks: body.initialLinks } : {}),
+    },
   })
 
   return new Response(stream, {
