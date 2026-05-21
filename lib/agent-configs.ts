@@ -14,8 +14,13 @@ export interface ResolvedAgentConfig {
 }
 
 export async function getAgentConfigs(): Promise<ResolvedAgentConfig[]> {
-  const rows = await db.select().from(agentConfigs)
-  const stored = Object.fromEntries(rows.map((r) => [r.id, r]))
+  let stored: Record<string, { prompt: string; model: string }> = {}
+  try {
+    const rows = await db.select().from(agentConfigs)
+    stored = Object.fromEntries(rows.map((r) => [r.id, r]))
+  } catch {
+    // table may not exist yet — fall back to defaults
+  }
 
   return AGENT_DEFINITIONS.map((def) => ({
     id: def.id,
