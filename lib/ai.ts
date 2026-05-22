@@ -76,6 +76,15 @@ export interface OpenRouterResponse {
   }
 }
 
+function injectDateContext(messages: OpenRouterMessage[]): OpenRouterMessage[] {
+  const now = new Date()
+  const dateStr = now.toLocaleDateString('pt-BR', { year: 'numeric', month: 'long', day: 'numeric' })
+  const prefix = `Data de hoje: ${dateStr}.\n\n`
+  return messages.map((m) =>
+    m.role === 'system' ? { ...m, content: prefix + m.content } : m
+  )
+}
+
 export async function callOpenRouter(
   options: OpenRouterOptions,
   apiKey?: string
@@ -102,7 +111,7 @@ export async function callOpenRouter(
     },
     body: JSON.stringify({
       model: options.model,
-      messages: options.messages,
+      messages: injectDateContext(options.messages),
       temperature: options.temperature ?? 0.7,
       max_tokens: options.max_tokens ?? 1024,
       ...(options.top_p !== undefined ? { top_p: options.top_p } : {}),
