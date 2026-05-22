@@ -2,7 +2,7 @@ import { NextRequest } from 'next/server'
 import { createPipelineStream } from '@/lib/agent-pipeline'
 import { PublisherTriggers } from '@/lib/agents/types'
 
-export const maxDuration = 300
+export const maxDuration = 800
 export const dynamic = 'force-dynamic'
 
 export async function POST(request: NextRequest) {

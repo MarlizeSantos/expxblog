@@ -86,7 +86,7 @@ export async function callOpenRouter(
     throw new Error('Chave de API do OpenRouter não configurada. Configure em Configurações → IA.')
   }
 
-  const timeout = AbortSignal.timeout(120_000)
+  const timeout = AbortSignal.timeout(180_000)
   const signal = options.signal
     ? AbortSignal.any([options.signal, timeout])
     : timeout

@@ -85,10 +85,14 @@ export async function runCopywriterRevision(
 PROBLEMAS A CORRIGIR:
 ${issueList}
 
-ARTIGO ATUAL (HTML):
-${ctx.articleContent.slice(0, 12000)}
+TÍTULO ATUAL: ${ctx.articleTitle ?? ''}
+EXCERPT ATUAL: ${ctx.articleExcerpt ?? ''}
 
-Responda em JSON (sem markdown): { "title": "${ctx.articleTitle ?? ''}", "excerpt": "${ctx.articleExcerpt ?? ''}", "content": "HTML corrigido" }`
+ARTIGO ATUAL (HTML):
+${ctx.articleContent.slice(0, 10000)}
+
+Responda SOMENTE com JSON válido (sem markdown, sem texto fora do JSON):
+{"title":"<título>","excerpt":"<excerpt>","content":"<HTML corrigido>"}`
 
   const resp = await callOpenRouter(
     {
@@ -96,12 +100,12 @@ Responda em JSON (sem markdown): { "title": "${ctx.articleTitle ?? ''}", "excerp
       messages: [
         {
           role: 'system',
-          content: 'Você é um editor preciso. Recebe um artigo HTML e uma lista de problemas específicos. Corrija APENAS os problemas indicados, preservando todo o restante do conteúdo, estrutura e estilo. Responda em JSON válido.',
+          content: 'Você é um editor preciso. Recebe um artigo HTML e uma lista de problemas específicos. Corrija APENAS os problemas indicados, preservando todo o restante do conteúdo, estrutura e estilo. Responda em JSON válido sem nenhum texto fora do JSON.',
         },
         { role: 'user', content: userMsg },
       ],
       temperature: 0.3,
-      max_tokens: 6000,
+      max_tokens: 8000,
     },
     apiKey
   )
