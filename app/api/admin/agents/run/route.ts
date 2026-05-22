@@ -13,6 +13,8 @@ export async function POST(request: NextRequest) {
     sendNewsletter?: boolean
     headline?: string
     initialLinks?: string[]
+    themeTitle?: string
+    themeDescription?: string
   }
 
   const triggers: PublisherTriggers = {
@@ -27,6 +29,8 @@ export async function POST(request: NextRequest) {
     initialContext: {
       ...(body.headline ? { headline: body.headline } : {}),
       ...(body.initialLinks?.length ? { researchLinks: body.initialLinks } : {}),
+      ...(body.themeTitle ? { themeTitle: body.themeTitle } : {}),
+      ...(body.themeDescription ? { themeDescription: body.themeDescription } : {}),
     },
     signal: request.signal,
   })

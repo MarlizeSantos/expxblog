@@ -192,7 +192,7 @@ export default function NewArticleModal({ open, onClose }: Props) {
   }
 
   function handleThemeSelect(theme: ArticleTheme) {
-    runPipeline({ themeIds: [theme.id] })
+    runPipeline({ themeIds: [theme.id], themeTitle: theme.title, themeDescription: theme.description ?? undefined })
   }
 
   function handleUrlGenerate() {

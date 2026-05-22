@@ -12,42 +12,58 @@ export async function runHeadlineAgent(
   apiKey: string,
   log?: (msg: string) => void
 ): Promise<AgentResult> {
-  log?.('buscando tema no banco...')
-  // Pick pending theme
-  let rows
-  if (themeIds.length > 0) {
-    rows = await db
-      .select()
-      .from(articleThemes)
-      .where(and(inArray(articleThemes.id, themeIds), eq(articleThemes.status, 'pending')))
-      .orderBy(asc(articleThemes.created_at))
-      .limit(1)
+  let themeId: number | undefined
+  let themeTitle: string
+  let themeDescription: string | null | undefined
+
+  if (ctx.themeTitle) {
+    // Theme data already in context — skip DB query
+    log?.('tema disponível no contexto, pulando busca no banco...')
+    themeTitle = ctx.themeTitle
+    themeDescription = ctx.themeDescription
+    themeId = ctx.themeId
   } else {
-    rows = await db
-      .select()
-      .from(articleThemes)
-      .where(eq(articleThemes.status, 'pending'))
-      .orderBy(asc(articleThemes.created_at))
-      .limit(1)
+    log?.('buscando tema no banco...')
+    let rows
+    if (themeIds.length > 0) {
+      rows = await db
+        .select()
+        .from(articleThemes)
+        .where(and(inArray(articleThemes.id, themeIds), eq(articleThemes.status, 'pending')))
+        .orderBy(asc(articleThemes.created_at))
+        .limit(1)
+    } else {
+      rows = await db
+        .select()
+        .from(articleThemes)
+        .where(eq(articleThemes.status, 'pending'))
+        .orderBy(asc(articleThemes.created_at))
+        .limit(1)
+    }
+
+    if (rows.length === 0) {
+      return { success: false, message: 'Nenhum tema pendente disponível', error: 'NO_THEME' }
+    }
+
+    themeId = rows[0].id
+    themeTitle = rows[0].title
+    themeDescription = rows[0].description
   }
 
-  if (rows.length === 0) {
-    return { success: false, message: 'Nenhum tema pendente disponível', error: 'NO_THEME' }
-  }
-
-  const theme = rows[0]
-  log?.(`tema encontrado: "${theme.title}" — carregando config do agente...`)
+  log?.(`tema: "${themeTitle}" — carregando config do agente...`)
   const config = await getAgentConfig('headline')
 
   // Load briefing
   log?.('carregando briefing...')
-  let briefing = ''
-  try {
-    const bRows = await db.select().from(siteSettings).where(eq(siteSettings.key, 'briefing_content')).limit(1)
-    briefing = bRows[0]?.value ?? ''
-  } catch {}
+  let briefing = ctx.briefing ?? ''
+  if (!briefing) {
+    try {
+      const bRows = await db.select().from(siteSettings).where(eq(siteSettings.key, 'briefing_content')).limit(1)
+      briefing = bRows[0]?.value ?? ''
+    } catch {}
+  }
 
-  const userMsg = `Tema: ${theme.title}${theme.description ? `\nDescrição: ${theme.description}` : ''}${briefing ? `\n\nContexto da empresa:\n${briefing.slice(0, 2000)}` : ''}`
+  const userMsg = `Tema: ${themeTitle}${themeDescription ? `\nDescrição: ${themeDescription}` : ''}${briefing ? `\n\nContexto da empresa:\n${briefing.slice(0, 2000)}` : ''}`
 
   log?.('chamando OpenRouter...')
   const resp = await callOpenRouter(
@@ -63,15 +79,15 @@ export async function runHeadlineAgent(
     apiKey
   )
 
-  const headline = resp.choices[0]?.message?.content?.trim() ?? theme.title
+  const headline = resp.choices[0]?.message?.content?.trim() ?? themeTitle
 
   return {
     success: true,
     message: `Headline gerada: "${headline}"`,
     data: {
-      themeId: theme.id,
-      themeTitle: theme.title,
-      themeDescription: theme.description,
+      themeId,
+      themeTitle,
+      themeDescription,
       briefing,
       headline,
     },
