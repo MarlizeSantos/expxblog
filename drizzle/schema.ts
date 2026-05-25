@@ -169,6 +169,40 @@ export const agentConfigs = pgTable('agent_configs', {
   updated_at: timestamp('updated_at').notNull().default(sql`now()`),
 })
 
+export const rssFeeds = pgTable('rss_feeds', {
+  id: serial('id').primaryKey(),
+  name: text('name').notNull(),
+  url: text('url').notNull(),
+  type: text('type').notNull().default('blog'), // 'blog', 'youtube', 'podcast', 'news'
+  enabled: boolean('enabled').notNull().default(true),
+  publish_status: text('publish_status').notNull().default('draft'), // 'draft' | 'published'
+  check_interval_minutes: integer('check_interval_minutes').notNull().default(60),
+  last_checked_at: timestamp('last_checked_at'),
+  last_error: text('last_error'),
+  created_at: timestamp('created_at').notNull().default(sql`now()`),
+  updated_at: timestamp('updated_at').notNull().default(sql`now()`),
+})
+
+export const rssProcessedItems = pgTable(
+  'rss_processed_items',
+  {
+    id: serial('id').primaryKey(),
+    feed_id: integer('feed_id')
+      .notNull()
+      .references(() => rssFeeds.id, { onDelete: 'cascade' }),
+    item_guid: text('item_guid').notNull(),
+    item_url: text('item_url'),
+    item_title: text('item_title'),
+    post_id: integer('post_id').references(() => posts.id, { onDelete: 'set null' }),
+    status: text('status').notNull().default('queued'), // 'queued' | 'processing' | 'done' | 'error'
+    error: text('error'),
+    processed_at: timestamp('processed_at').notNull().default(sql`now()`),
+  },
+  (t) => ({
+    feedGuidIdx: index('rss_processed_items_feed_guid_idx').on(t.feed_id, t.item_guid),
+  })
+)
+
 export type AgentConfig = typeof agentConfigs.$inferSelect
 export type NewAgentConfig = typeof agentConfigs.$inferInsert
 
@@ -215,3 +249,7 @@ export type AutomationConfig = typeof automationConfig.$inferSelect
 export type NewAutomationConfig = typeof automationConfig.$inferInsert
 export type NewsletterSubscriber = typeof newsletterSubscribers.$inferSelect
 export type NewNewsletterSubscriber = typeof newsletterSubscribers.$inferInsert
+export type RssFeed = typeof rssFeeds.$inferSelect
+export type NewRssFeed = typeof rssFeeds.$inferInsert
+export type RssProcessedItem = typeof rssProcessedItems.$inferSelect
+export type NewRssProcessedItem = typeof rssProcessedItems.$inferInsert

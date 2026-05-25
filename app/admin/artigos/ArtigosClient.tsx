@@ -5,18 +5,20 @@ import Link from 'next/link'
 import { Badge } from '@/components/ui/Badge'
 import NewArticleModal from './NewArticleModal'
 import AgentsSection from './AgentsSection'
+import RSSSection from './RSSSection'
 import type { Post } from '@/drizzle/schema'
 import type { ArticleGenerationConfig, ArticleVoiceTone, ArticleLanguage } from '@/lib/article-config-types'
 import { ARTICLE_CONFIG_DEFAULTS } from '@/lib/article-config-types'
 
-type SectionId = 'lista' | 'temas' | 'briefing' | 'automacao' | 'agentes' | 'configuracao'
+type SectionId = 'lista' | 'temas' | 'briefing' | 'automacao' | 'rss' | 'agentes' | 'configuracao'
 
 const SIDEBAR_ITEMS: { id: SectionId; label: string; icon: string }[] = [
   { id: 'lista', label: 'Lista de Artigos', icon: '📝' },
   { id: 'temas', label: 'Temas', icon: '💡' },
   { id: 'briefing', label: 'Briefing', icon: '📋' },
   { id: 'automacao', label: 'Automação', icon: '🤖' },
-  { id: 'agentes', label: 'Agentes de IA', icon: '🤖' },
+  { id: 'rss', label: 'RSS', icon: '📡' },
+  { id: 'agentes', label: 'Agentes de IA', icon: '🧠' },
   { id: 'configuracao', label: 'Configurações', icon: '⚙️' },
 ]
 
@@ -33,6 +35,8 @@ export default function ArtigosClient() {
         return <BriefingSection />
       case 'automacao':
         return <AutomacaoSection />
+      case 'rss':
+        return <RSSSection />
       case 'agentes':
         return <AgentsSection />
       case 'configuracao':
