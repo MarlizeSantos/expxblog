@@ -82,6 +82,35 @@ async function getNewsSections(): Promise<
   }
 }
 
+async function getTechHeroPosts(): Promise<NewsPost[]> {
+  try {
+    const rows = await db
+      .select({ post: posts })
+      .from(posts)
+      .where(eq(posts.status, 'published'))
+      .orderBy(desc(posts.published_at))
+      .limit(3)
+
+    return Promise.all(
+      rows.map(async ({ post: p }) => {
+        const catRows = await db
+          .select({ category: categories })
+          .from(postCategories)
+          .innerJoin(categories, eq(categories.id, postCategories.category_id))
+          .where(eq(postCategories.post_id, p.id))
+          .limit(3)
+        return {
+          ...p,
+          published_at: p.published_at?.toISOString() ?? null,
+          categories: catRows.map((r) => r.category),
+        }
+      })
+    )
+  } catch {
+    return []
+  }
+}
+
 export default async function HomePage({
   searchParams,
 }: {
@@ -93,7 +122,7 @@ export default async function HomePage({
     template === 'portal' ? '10' :
     template === 'business' ? '12' :
     template === 'news' ? '0' :
-    template === 'tech' ? '0' :
+    template === 'tech' ? '10' :
     '9'
   const [postsData, categoriesData] = await Promise.all([
     getPostsPage({ page: searchParams.page, limit: pageLimit, category: searchParams.category, tag: searchParams.tag }),
@@ -161,52 +190,38 @@ export default async function HomePage({
   }
 
   if (template === 'tech') {
-    const sections = await getNewsSections()
-    const heroPosts = sections.flatMap((s) => s.posts).slice(0, 3)
-    const heroIds = new Set(heroPosts.map((p) => p.id))
+    const heroPosts = await getTechHeroPosts()
+    const listPosts = postsData.posts.map((p) => ({
+      ...p,
+      published_at: p.published_at?.toISOString() ?? null,
+    }))
     return (
       <div>
         <TechHero posts={heroPosts} />
-        {sections.length === 0 && (
-          <p className="text-gray-500">Nenhum post publicado ainda.</p>
+        {listPosts.length === 0 && (
+          <p className="text-gray-500 mt-8">Nenhum post publicado ainda.</p>
         )}
-        <div className="divide-y divide-gray-100">
-          {sections.map(({ category, posts: sectionPosts }) => {
-            const filtered = sectionPosts.filter((p) => !heroIds.has(p.id))
-            if (filtered.length === 0) return null
-            return (
-              <section key={category.id} className="py-10 first:pt-0">
-                <div className="flex items-center justify-between mb-5">
-                  <div className="flex items-center gap-3">
-                    <div
-                      className="w-1 h-6 rounded-full"
-                      style={{ backgroundColor: 'var(--color-secondary)' }}
-                    />
-                    <h2 className="text-base font-bold text-neutral-900 uppercase tracking-widest">
-                      {category.name}
-                    </h2>
-                  </div>
-                  <a
-                    href={`/categoria/${category.slug}`}
-                    className="text-xs font-semibold uppercase tracking-wide transition-opacity hover:opacity-60"
-                    style={{ color: 'var(--color-secondary)' }}
-                  >
-                    Ver mais →
-                  </a>
-                </div>
-                {filtered.length === 1 ? (
-                  <PostCardTech post={filtered[0]} variant="highlight" />
-                ) : (
-                  <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
-                    {filtered.map((post) => (
-                      <PostCardTech key={post.id} post={post} variant="card" />
-                    ))}
-                  </div>
-                )}
-              </section>
-            )
-          })}
-        </div>
+        {listPosts.length > 0 && (
+          <div className="mt-10">
+            <div className="flex items-center gap-3 mb-6">
+              <div
+                className="w-1 h-6 rounded-full"
+                style={{ backgroundColor: 'var(--color-secondary)' }}
+              />
+              <h2 className="text-base font-bold text-neutral-900 uppercase tracking-widest">
+                Últimos artigos
+              </h2>
+            </div>
+            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
+              {listPosts.map((post) => (
+                <PostCardTech key={post.id} post={post} variant="card" />
+              ))}
+            </div>
+            <Suspense>
+              <Pagination currentPage={postsData.page} totalPages={postsData.pages} />
+            </Suspense>
+          </div>
+        )}
       </div>
     )
   }
