@@ -119,7 +119,7 @@ export default async function HomePage({
   const { template } = await getSettings()
 
   const pageLimit =
-    template === 'portal' ? '10' :
+    template === 'portal' ? '13' :
     template === 'business' ? '12' :
     template === 'news' ? '0' :
     template === 'tech' ? '10' :

@@ -13,7 +13,7 @@ function formatDate(date: Date | null): string {
 export function HeroPost({ post }: HeroPostProps) {
   return (
     <Link href={`/${post.slug}`} className="block group mb-8">
-      <div className="relative w-full aspect-[21/9] min-h-[280px] rounded-xl overflow-hidden bg-gray-800">
+      <div className="relative w-full overflow-hidden rounded-xl bg-gray-800" style={{ minHeight: '320px', maxHeight: '480px', aspectRatio: '16/9' }}>
         {post.cover_image ? (
           <img
             src={post.cover_image}
@@ -27,10 +27,8 @@ export function HeroPost({ post }: HeroPostProps) {
           />
         )}
 
-        {/* Dark gradient overlay */}
         <div className="absolute inset-0 bg-gradient-to-t from-black/80 via-black/30 to-transparent" />
 
-        {/* Content */}
         <div className="absolute bottom-0 left-0 right-0 p-6 md:p-8">
           {post.categories.length > 0 && (
             <span
@@ -40,9 +38,9 @@ export function HeroPost({ post }: HeroPostProps) {
               {post.categories[0].name}
             </span>
           )}
-          <h2 className="text-white text-2xl md:text-4xl font-bold leading-tight mb-2 group-hover:underline">
+          <h1 className="text-white text-2xl md:text-4xl font-bold leading-tight mb-2 group-hover:underline underline-offset-4 max-w-3xl">
             {post.title}
-          </h2>
+          </h1>
           {post.excerpt && (
             <p className="text-white/80 text-sm md:text-base line-clamp-2 mb-3 max-w-2xl">
               {post.excerpt}
