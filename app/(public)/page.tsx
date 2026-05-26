@@ -14,7 +14,7 @@ import { NewsSidebar } from '@/components/blog/NewsSidebar'
 import { TechHero } from '@/components/blog/TechHero'
 import { PostCardTech } from '@/components/blog/PostCardTech'
 import { db } from '@/drizzle/db'
-import { posts, postCategories, categories } from '@/drizzle/schema'
+import { posts, postCategories, categories, tags } from '@/drizzle/schema'
 import { eq, desc, and, asc } from 'drizzle-orm'
 
 export async function generateMetadata(): Promise<Metadata> {
@@ -143,20 +143,56 @@ export default async function HomePage({
   }
 
   if (template === 'news') {
-    const sections = await getNewsSections()
+    const [sections, allTags] = await Promise.all([
+      getNewsSections(),
+      db.select().from(tags).limit(20).catch(() => [] as typeof tags.$inferSelect[]),
+    ])
     return (
-      <div className="flex gap-8">
-        <div className="flex-1 min-w-0">
-          {sections.length === 0 && (
-            <p className="text-gray-500">Nenhum post publicado ainda.</p>
-          )}
-          {sections.map(({ category, posts: sectionPosts }) => (
-            <CategorySection key={category.id} category={category} posts={sectionPosts} />
-          ))}
-        </div>
-        <div className="hidden lg:block w-72 shrink-0">
-          <div className="sticky top-24">
-            <NewsSidebar />
+      <div>
+        {(sections.length > 0 || allTags.length > 0) && (
+          <div className="mb-8 pb-6 border-b border-gray-100 space-y-3">
+            {sections.length > 0 && (
+              <div className="flex flex-wrap gap-2">
+                {sections.map(({ category }) => (
+                  <a
+                    key={category.id}
+                    href={`#${category.slug}`}
+                    className="px-3 py-1.5 text-xs font-bold uppercase tracking-wide rounded-full border transition-colors hover:bg-[var(--color-primary)] hover:text-white"
+                    style={{ borderColor: 'var(--color-primary)', color: 'var(--color-primary)' }}
+                  >
+                    {category.name}
+                  </a>
+                ))}
+              </div>
+            )}
+            {allTags.length > 0 && (
+              <div className="flex flex-wrap gap-2">
+                {allTags.map((tag) => (
+                  <a
+                    key={tag.id}
+                    href={`/tag/${tag.slug}`}
+                    className="text-xs font-medium px-3 py-1 rounded-full bg-white border border-gray-200 text-gray-600 hover:border-[var(--color-primary)] hover:text-[var(--color-primary)] transition-colors"
+                  >
+                    {tag.name}
+                  </a>
+                ))}
+              </div>
+            )}
+          </div>
+        )}
+        <div className="flex gap-8">
+          <div className="flex-1 min-w-0">
+            {sections.length === 0 && (
+              <p className="text-gray-500">Nenhum post publicado ainda.</p>
+            )}
+            {sections.map(({ category, posts: sectionPosts }) => (
+              <CategorySection key={category.id} category={category} posts={sectionPosts} />
+            ))}
+          </div>
+          <div className="hidden lg:block w-72 shrink-0">
+            <div className="sticky top-24">
+              <NewsSidebar />
+            </div>
           </div>
         </div>
       </div>
@@ -227,43 +263,24 @@ export default async function HomePage({
   }
 
   return (
-    <div className="flex gap-8">
-      <div className="flex-1 min-w-0">
-        <h1 className="text-3xl font-bold text-neutral-900 mb-2 font-serif">Blog</h1>
-        <p className="text-gray-500 mb-8">Tecnologia, gestão e inovação para empresas</p>
+    <div>
+      <h1 className="text-3xl font-bold text-neutral-900 mb-2 font-serif">Blog</h1>
+      <p className="text-gray-500 mb-8">Tecnologia, gestão e inovação para empresas</p>
 
-        <Suspense>
-          <CategoryFilter
-            categories={categoriesData.categories}
-            selected={searchParams.category}
-          />
-        </Suspense>
+      <Suspense>
+        <CategoryFilter
+          categories={categoriesData.categories}
+          selected={searchParams.category}
+        />
+      </Suspense>
 
-        <div className="mt-6">
-          <PostGrid posts={postsData.posts} />
-        </div>
-
-        <Suspense>
-          <Pagination currentPage={postsData.page} totalPages={postsData.pages} />
-        </Suspense>
+      <div className="mt-6">
+        <PostGrid posts={postsData.posts} />
       </div>
 
-      <aside className="hidden lg:block w-64 shrink-0">
-        <div className="sticky top-8">
-          <h2 className="font-semibold text-neutral-900 mb-4">Categorias</h2>
-          <div className="flex flex-col gap-1">
-            {categoriesData.categories.map((cat: { id: number; name: string; slug: string }) => (
-              <a
-                key={cat.id}
-                href={`/categoria/${cat.slug}`}
-                className="text-sm text-brand-primary hover:text-brand-primary-dark px-3 py-1.5 rounded-lg hover:bg-brand-primary-light transition-colors"
-              >
-                {cat.name}
-              </a>
-            ))}
-          </div>
-        </div>
-      </aside>
+      <Suspense>
+        <Pagination currentPage={postsData.page} totalPages={postsData.pages} />
+      </Suspense>
     </div>
   )
 }

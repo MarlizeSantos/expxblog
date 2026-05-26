@@ -1,7 +1,6 @@
-import Link from 'next/link'
 import { PostCardNews } from '@/components/blog/PostCardNews'
 import { db } from '@/drizzle/db'
-import { posts, postCategories, categories, tags } from '@/drizzle/schema'
+import { posts, postCategories, categories } from '@/drizzle/schema'
 import { eq, desc } from 'drizzle-orm'
 
 async function getRecentPosts() {
@@ -33,16 +32,8 @@ async function getRecentPosts() {
   }
 }
 
-async function getAllTags() {
-  try {
-    return db.select().from(tags).limit(20)
-  } catch {
-    return []
-  }
-}
-
 export async function NewsSidebar() {
-  const [recentPosts, allTags] = await Promise.all([getRecentPosts(), getAllTags()])
+  const recentPosts = await getRecentPosts()
 
   return (
     <aside className="space-y-8">
@@ -65,28 +56,6 @@ export async function NewsSidebar() {
         </div>
       )}
 
-      {allTags.length > 0 && (
-        <div>
-          <div className="flex items-center gap-2 mb-4 pb-3 border-b-2" style={{ borderColor: 'var(--color-secondary)' }}>
-            <div
-              className="h-4 w-[3px] rounded-sm"
-              style={{ backgroundColor: 'var(--color-secondary)' }}
-            />
-            <h2 className="text-xs font-bold text-neutral-900 uppercase tracking-widest">Tags</h2>
-          </div>
-          <div className="flex flex-wrap gap-2">
-            {allTags.map((tag) => (
-              <Link
-                key={tag.id}
-                href={`/tag/${tag.slug}`}
-                className="text-xs font-medium px-3 py-1.5 rounded-full bg-white border border-gray-200 text-gray-600 hover:border-[var(--color-primary)] hover:text-[var(--color-primary)] transition-colors"
-              >
-                {tag.name}
-              </Link>
-            ))}
-          </div>
-        </div>
-      )}
     </aside>
   )
 }

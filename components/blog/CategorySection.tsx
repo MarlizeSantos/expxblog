@@ -29,7 +29,7 @@ export function CategorySection({ category, posts }: Props) {
   const [lead, ...rest] = posts
 
   return (
-    <section className="mb-10 pb-10 border-b border-gray-100 last:border-0 last:mb-0 last:pb-0">
+    <section id={category.slug} className="mb-10 pb-10 border-b border-gray-100 last:border-0 last:mb-0 last:pb-0">
       <div className="flex items-center justify-between mb-5">
         <div className="flex items-center gap-2">
           <div
