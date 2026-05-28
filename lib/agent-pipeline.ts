@@ -1,5 +1,5 @@
 // lib/agent-pipeline.ts
-import { getAIApiKey } from '@/lib/ai'
+import { getAIApiKey, callOpenRouter } from '@/lib/ai'
 import { runHeadlineAgent } from '@/lib/agents/headline'
 import { runResearcherAgent } from '@/lib/agents/researcher'
 import { runAnalystAgent } from '@/lib/agents/analyst'
@@ -14,9 +14,58 @@ import { AgentContext, AgentId, PipelineEvent, PublisherTriggers } from '@/lib/a
 const LEARNING_MARKER = '\n\n--- ERROS RECORRENTES (aprender a evitar) ---'
 const MAX_LEARNING_ITEMS = 10
 
-async function appendLearningToPrompt(issues: string[]): Promise<void> {
+/**
+ * Filters raw reviewer issues down to generic, reusable writing principles.
+ * Issues tied to specific facts, data, names, dates, or topics of a single article
+ * are discarded — only structural/stylistic patterns worth learning globally are kept.
+ */
+async function generalizeIssues(issues: string[], apiKey: string): Promise<string[]> {
+  const prompt = `Você receberá uma lista de erros apontados por um revisor em um artigo específico.
+Sua tarefa é filtrar e reescrever apenas os erros que representam problemas ESTRUTURAIS ou GENÉRICOS de escrita — erros que o copywriter deve evitar em QUALQUER artigo futuro, independentemente do tema.
+
+Descarte erros que:
+- Mencionam fatos, dados, números, datas, nomes, lugares ou eventos específicos do artigo
+- Dependem do contexto ou tema particular do artigo para fazer sentido
+- Seriam irrelevantes ou incorretos aplicados a outros temas
+
+Mantenha e reescreva (de forma abstrata e genérica) apenas erros que indicam:
+- Problemas de estrutura textual (introdução, desenvolvimento, conclusão)
+- Falhas de coerência ou coesão
+- Problemas de clareza, objetividade ou tom
+- Uso inadequado de linguagem, jargões ou formalidade
+- Ausência de elementos estruturais importantes (fontes, links, subtítulos, etc.)
+
+Responda APENAS com um array JSON de strings. Se nenhum erro for genérico, responda com [].
+Exemplo: ["Introdução não apresenta o problema central antes de entrar nos detalhes", "Conclusão não retoma os pontos principais do artigo"]
+
+Erros para analisar:
+${issues.map((i, n) => `${n + 1}. ${i}`).join('\n')}`
+
+  try {
+    const resp = await callOpenRouter(
+      {
+        model: 'openai/gpt-4o-mini',
+        messages: [{ role: 'user', content: prompt }],
+        temperature: 0.1,
+        max_tokens: 400,
+      },
+      apiKey
+    )
+    const raw = resp.choices[0]?.message?.content ?? '[]'
+    const cleaned = raw.replace(/```json\n?/g, '').replace(/```\n?/g, '').trim()
+    const parsed = JSON.parse(cleaned)
+    return Array.isArray(parsed) ? parsed.filter((s): s is string => typeof s === 'string') : []
+  } catch {
+    return []
+  }
+}
+
+async function appendLearningToPrompt(issues: string[], apiKey: string): Promise<void> {
   if (issues.length === 0) return
   try {
+    const genericIssues = await generalizeIssues(issues, apiKey)
+    if (genericIssues.length === 0) return
+
     const config = await getAgentConfig('copywriter')
     const markerIdx = config.prompt.indexOf(LEARNING_MARKER)
     const basePrompt = markerIdx >= 0 ? config.prompt.slice(0, markerIdx) : config.prompt
@@ -28,7 +77,7 @@ async function appendLearningToPrompt(issues: string[]): Promise<void> {
 
     // Merge, deduplicate, cap at MAX_LEARNING_ITEMS
     const merged = [...existing]
-    for (const issue of issues) {
+    for (const issue of genericIssues) {
       if (!merged.some(e => e.toLowerCase().includes(issue.toLowerCase().slice(0, 30)))) {
         merged.push(issue)
       }
@@ -180,8 +229,8 @@ export function createPipelineStream(options: PipelineOptions): ReadableStream {
 
         // Append persistent issues to copywriter prompt for future articles
         if (persistentIssues.length > 0) {
-          await appendLearningToPrompt(persistentIssues)
-          send(makeEvent('log', `Aprendizado registrado: ${persistentIssues.length} padrão(ões) adicionado(s) ao prompt do copywriter`))
+          await appendLearningToPrompt(persistentIssues, apiKey)
+          send(makeEvent('log', `Aprendizado registrado: ${persistentIssues.length} padrão(ões) analisado(s) para o prompt do copywriter`))
         }
 
         // 6. CTA
