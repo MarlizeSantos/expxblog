@@ -15,6 +15,7 @@ export async function POST(request: NextRequest) {
     initialLinks?: string[]
     themeTitle?: string
     themeDescription?: string
+    pastedText?: string
   }
 
   const triggers: PublisherTriggers = {
@@ -31,6 +32,7 @@ export async function POST(request: NextRequest) {
       ...(body.initialLinks?.length ? { researchLinks: body.initialLinks } : {}),
       ...(body.themeTitle ? { themeTitle: body.themeTitle } : {}),
       ...(body.themeDescription ? { themeDescription: body.themeDescription } : {}),
+      ...(body.pastedText ? { pastedText: body.pastedText } : {}),
     },
     signal: request.signal,
   })
