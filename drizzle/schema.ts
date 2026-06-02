@@ -8,6 +8,7 @@ import {
   boolean,
   primaryKey,
   index,
+  uniqueIndex,
 } from 'drizzle-orm/pg-core'
 import { relations, sql } from 'drizzle-orm'
 
@@ -274,3 +275,40 @@ export type RssProcessedItem = typeof rssProcessedItems.$inferSelect
 export type NewRssProcessedItem = typeof rssProcessedItems.$inferInsert
 export type AutomationLog = typeof automationLogs.$inferSelect
 export type NewAutomationLog = typeof automationLogs.$inferInsert
+
+export const sourceCrawlers = pgTable('source_crawlers', {
+  id: serial('id').primaryKey(),
+  name: text('name').notNull(),
+  type: text('type').notNull().default('custom'), // 'github' | 'docs' | 'custom'
+  url: text('url').notNull(),
+  prompt: text('prompt').notNull().default(''),
+  interval_hours: real('interval_hours').notNull().default(24),
+  enabled: boolean('enabled').notNull().default(true),
+  publish_status: text('publish_status').notNull().default('published'), // 'draft' | 'published'
+  last_run_at: timestamp('last_run_at'),
+  next_run_at: timestamp('next_run_at'),
+  last_error: text('last_error'),
+  created_at: timestamp('created_at').notNull().default(sql`now()`),
+  updated_at: timestamp('updated_at').notNull().default(sql`now()`),
+})
+
+export const sourceCrawlerItems = pgTable(
+  'source_crawler_items',
+  {
+    id: serial('id').primaryKey(),
+    crawler_id: integer('crawler_id')
+      .notNull()
+      .references(() => sourceCrawlers.id, { onDelete: 'cascade' }),
+    item_key: text('item_key').notNull(),
+    item_title: text('item_title'),
+    post_id: integer('post_id').references(() => posts.id, { onDelete: 'set null' }),
+    status: text('status').notNull().default('done'), // 'done' | 'error'
+    error: text('error'),
+    processed_at: timestamp('processed_at').notNull().default(sql`now()`),
+  },
+  (t) => ({ uniq: uniqueIndex('source_crawler_items_crawler_item_uniq').on(t.crawler_id, t.item_key) })
+)
+
+export type SourceCrawler = typeof sourceCrawlers.$inferSelect
+export type NewSourceCrawler = typeof sourceCrawlers.$inferInsert
+export type SourceCrawlerItem = typeof sourceCrawlerItems.$inferSelect
