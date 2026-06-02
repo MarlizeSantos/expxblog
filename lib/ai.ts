@@ -20,6 +20,7 @@ const DEFAULT_MODELS: Record<string, string> = {
   briefing_generation: 'openai/gpt-4o-mini',
   prompt_generation: 'openai/gpt-4o-mini',
   theme_suggestion: 'openai/gpt-4o-mini',
+  category_matching: 'openai/gpt-4o-mini',
 }
 
 export function getDefaultModels(): Record<string, string> {

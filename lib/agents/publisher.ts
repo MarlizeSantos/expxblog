@@ -5,6 +5,7 @@ import { posts, postCategories, categories, articleThemes, automationConfig, sit
 import { eq } from 'drizzle-orm'
 import { generateSlug } from '@/lib/slug'
 import { AgentContext, AgentResult, PublisherTriggers } from '@/lib/agents/types'
+import { aiChat } from '@/lib/ai'
 
 const sanitizeOptions: sanitizeHtml.IOptions = {
   allowedTags: sanitizeHtml.defaults.allowedTags.concat(['h2', 'h3', 'img']),
@@ -41,22 +42,37 @@ export async function runPublisherAgent(
     })
     .returning()
 
-  // Auto-assign best matching category based on title keywords
+  // Auto-assign best matching category using semantic AI matching
   try {
     const allCategories = await db.select().from(categories)
     if (allCategories.length > 0) {
-      const titleLower = (ctx.articleTitle + ' ' + (ctx.themeTitle ?? '')).toLowerCase()
-      const scored = allCategories.map((cat) => {
-        const words = cat.name.toLowerCase().split(/\s+/)
-        const score = words.filter((w) => titleLower.includes(w)).length
-        return { cat, score }
-      })
-      scored.sort((a, b) => b.score - a.score)
-      const best = scored[0]
-      const categoryId = best.cat.id
-      await db.insert(postCategories).values({ post_id: post.id, category_id: categoryId }).onConflictDoNothing()
+      const categoryList = allCategories.map((cat) => `${cat.id}: ${cat.name}`).join('\n')
+      const messages = [
+        {
+          role: 'system' as const,
+          content:
+            'Você é um assistente de categorização. Dado um título de artigo e uma lista de categorias, retorne APENAS o ID numérico da categoria mais adequada. Se nenhuma categoria for relevante, retorne "none". Nunca retorne texto além do ID ou "none".',
+        },
+        {
+          role: 'user' as const,
+          content: `Título do artigo: ${ctx.articleTitle}\n\nCategorias disponíveis:\n${categoryList}`,
+        },
+      ]
+      const response = await aiChat('category_matching', messages, { temperature: 0, max_tokens: 10 })
+      const trimmed = response.trim()
+      if (trimmed !== 'none') {
+        const categoryId = parseInt(trimmed, 10)
+        if (!isNaN(categoryId)) {
+          const matched = allCategories.find((cat) => cat.id === categoryId)
+          if (matched) {
+            await db.insert(postCategories).values({ post_id: post.id, category_id: categoryId }).onConflictDoNothing()
+          }
+        }
+      }
     }
-  } catch {}
+  } catch (err) {
+    console.warn('[Publisher] Falha ao categorizar artigo:', err instanceof Error ? err.message : String(err))
+  }
 
   // Mark theme as used
   if (ctx.themeId) {

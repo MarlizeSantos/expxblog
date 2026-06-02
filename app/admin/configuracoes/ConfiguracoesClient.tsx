@@ -50,6 +50,7 @@ const FEATURE_LABELS: Record<string, string> = {
   briefing_generation: 'Geração de Briefing',
   prompt_generation: 'Geração de Prompts',
   theme_suggestion: 'Sugestão de Temas',
+  category_matching: 'Categorização de Artigos',
 }
 
 const SIDEBAR_ITEMS: { id: SectionId; label: string; icon: string }[] = [
@@ -169,8 +170,10 @@ export function ConfiguracoesClient({ initial, initialAI, initialTelegram, initi
       const data = await res.json()
       if (!res.ok) throw new Error(data.error ?? 'Falha ao registrar webhook')
       setToast({ type: 'success', msg: `Webhook registrado com sucesso! URL: ${data.webhook_url}` })
+      setTimeout(() => setToast(null), 3000)
     } catch (err) {
       setToast({ type: 'error', msg: err instanceof Error ? err.message : 'Erro ao registrar webhook.' })
+      setTimeout(() => setToast(null), 3000)
     } finally {
       setWebhookLoading(false)
     }
@@ -190,8 +193,10 @@ export function ConfiguracoesClient({ initial, initialAI, initialTelegram, initi
         throw new Error(data.error ?? 'Falha ao salvar')
       }
       setToast({ type: 'success', msg: 'Configurações salvas com sucesso!' })
+      setTimeout(() => setToast(null), 3000)
     } catch (err) {
       setToast({ type: 'error', msg: err instanceof Error ? err.message : 'Erro ao salvar configurações.' })
+      setTimeout(() => setToast(null), 3000)
     } finally {
       setSaving(false)
     }
