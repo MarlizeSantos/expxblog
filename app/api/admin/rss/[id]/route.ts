@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from 'next/server'
 import { db } from '@/drizzle/db'
 import { rssFeeds, rssProcessedItems } from '@/drizzle/schema'
 import { eq, desc } from 'drizzle-orm'
+import { scheduleRssCron, unscheduleRssCron } from '@/lib/supabase-cron'
 
 export async function GET(_req: NextRequest, { params }: { params: { id: string } }) {
   const id = parseInt(params.id)
@@ -49,6 +50,14 @@ export async function PUT(request: NextRequest, { params }: { params: { id: stri
 
   if (!updated) return NextResponse.json({ error: 'Feed não encontrado' }, { status: 404 })
 
+  // Sync pg_cron when enabled state changed
+  if (body.enabled !== undefined) {
+    const all = await db.select({ enabled: rssFeeds.enabled }).from(rssFeeds)
+    const anyEnabled = all.some((f) => f.enabled)
+    if (anyEnabled) await scheduleRssCron()
+    else await unscheduleRssCron()
+  }
+
   return NextResponse.json({ feed: updated })
 }
 
@@ -57,5 +66,10 @@ export async function DELETE(_req: NextRequest, { params }: { params: { id: stri
   if (isNaN(id)) return NextResponse.json({ error: 'ID inválido' }, { status: 400 })
 
   await db.delete(rssFeeds).where(eq(rssFeeds.id, id))
+
+  // Unschedule cron if no enabled feeds remain
+  const remaining = await db.select({ enabled: rssFeeds.enabled }).from(rssFeeds)
+  if (!remaining.some((f) => f.enabled)) await unscheduleRssCron()
+
   return NextResponse.json({ ok: true })
 }

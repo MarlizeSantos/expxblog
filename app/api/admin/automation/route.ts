@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from 'next/server'
 import { db } from '@/drizzle/db'
 import { automationConfig } from '@/drizzle/schema'
 import { eq } from 'drizzle-orm'
+import { scheduleAutomationCron, unscheduleAutomationCron } from '@/lib/supabase-cron'
 
 export const dynamic = 'force-dynamic'
 
@@ -50,6 +51,9 @@ export async function PUT(request: NextRequest) {
       next_run_at: nextRun,
       updated_at: now,
     }).where(eq(automationConfig.id, config.id))
+
+    if (Boolean(enabled)) await scheduleAutomationCron()
+    else await unscheduleAutomationCron()
 
     return NextResponse.json({ success: true })
   } catch {

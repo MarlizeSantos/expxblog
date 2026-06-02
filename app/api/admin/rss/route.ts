@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from 'next/server'
 import { db } from '@/drizzle/db'
 import { rssFeeds, rssProcessedItems } from '@/drizzle/schema'
 import { eq, desc, sql } from 'drizzle-orm'
+import { scheduleRssCron } from '@/lib/supabase-cron'
 
 export async function GET() {
   const feeds = await db
@@ -63,6 +64,8 @@ export async function POST(request: NextRequest) {
     publish_status: body.publish_status ?? 'draft',
     check_interval_minutes: body.check_interval_minutes ?? 60,
   }).returning()
+
+  if (feed.enabled) await scheduleRssCron()
 
   return NextResponse.json({ feed }, { status: 201 })
 }

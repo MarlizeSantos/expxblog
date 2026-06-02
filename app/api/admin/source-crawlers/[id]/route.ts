@@ -3,6 +3,7 @@ import { db } from '@/drizzle/db'
 import { sourceCrawlers } from '@/drizzle/schema'
 import { eq } from 'drizzle-orm'
 import { runSingleCrawler } from '@/lib/source-crawlers/runner'
+import { scheduleSourceCrawlersCron, unscheduleSourceCrawlersCron } from '@/lib/supabase-cron'
 
 export async function PATCH(request: NextRequest, { params }: { params: { id: string } }) {
   const id = parseInt(params.id, 10)
@@ -32,12 +33,26 @@ export async function PATCH(request: NextRequest, { params }: { params: { id: st
     .returning()
 
   if (!updated) return NextResponse.json({ error: 'Não encontrado' }, { status: 404 })
+
+  // Sync pg_cron: check if any crawler is still enabled after this update
+  if (typeof allowed.enabled === 'boolean') {
+    const all = await db.select({ enabled: sourceCrawlers.enabled }).from(sourceCrawlers)
+    const anyEnabled = all.some((c) => c.enabled)
+    if (anyEnabled) await scheduleSourceCrawlersCron()
+    else await unscheduleSourceCrawlersCron()
+  }
+
   return NextResponse.json({ crawler: updated })
 }
 
 export async function DELETE(_: NextRequest, { params }: { params: { id: string } }) {
   const id = parseInt(params.id, 10)
   await db.delete(sourceCrawlers).where(eq(sourceCrawlers.id, id))
+
+  // Unschedule cron if no enabled crawlers remain
+  const remaining = await db.select({ enabled: sourceCrawlers.enabled }).from(sourceCrawlers)
+  if (!remaining.some((c) => c.enabled)) await unscheduleSourceCrawlersCron()
+
   return NextResponse.json({ ok: true })
 }
 

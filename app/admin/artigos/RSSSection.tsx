@@ -310,7 +310,7 @@ export default function RSSSection() {
 
       {/* Info banner */}
       <div className="bg-blue-50 border border-blue-200 rounded-lg p-4 text-sm text-blue-700">
-        <strong>Como funciona:</strong> O sistema verifica automaticamente cada feed no intervalo configurado. Quando um item novo é encontrado, o pipeline de IA gera um artigo original inspirado no conteúdo do feed. O Vercel Cron executa as verificações a cada 30 minutos.
+        <strong>Como funciona:</strong> O sistema verifica automaticamente cada feed no intervalo configurado. Quando um item novo é encontrado, o pipeline de IA gera um artigo original inspirado no conteúdo do feed. O Supabase pg_cron executa as verificações a cada 30 minutos automaticamente quando há feeds ativos.
       </div>
 
       {/* Content */}
