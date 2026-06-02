@@ -66,9 +66,14 @@ const EMPTY_FORM = {
 }
 
 const URL_HINTS: Record<CrawlerType, string> = {
-  github: 'Termo de busca do GitHub (ex: "AI tools machine learning")',
+  github: 'Termo de busca no GitHub (ex: "AI tools machine learning")',
   docs: 'URL base da documentação (ex: https://docs.anthropic.com)',
   custom: 'URL específica para raspar (ex: https://example.com/page)',
+}
+
+function formatDate(d: string | null) {
+  if (!d) return 'nunca'
+  return new Date(d).toLocaleString('pt-BR', { dateStyle: 'short', timeStyle: 'short' })
 }
 
 export default function FontesClient() {
@@ -122,38 +127,19 @@ export default function FontesClient() {
 
   const openEdit = (c: SourceCrawler) => {
     setEditingId(c.id)
-    setForm({
-      name: c.name,
-      type: c.type,
-      url: c.url,
-      prompt: c.prompt,
-      interval_hours: c.interval_hours,
-      enabled: c.enabled,
-      publish_status: c.publish_status,
-    })
+    setForm({ name: c.name, type: c.type, url: c.url, prompt: c.prompt, interval_hours: c.interval_hours, enabled: c.enabled, publish_status: c.publish_status })
     setShowModal(true)
   }
 
   const handleSave = async () => {
-    if (!form.name.trim() || !form.url.trim()) {
-      showToast('error', 'Nome e URL são obrigatórios')
-      return
-    }
+    if (!form.name.trim() || !form.url.trim()) { showToast('error', 'Nome e URL são obrigatórios'); return }
     setSaving(true)
     try {
       if (editingId) {
-        await fetch(`/api/admin/source-crawlers/${editingId}`, {
-          method: 'PATCH',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify(form),
-        })
+        await fetch(`/api/admin/source-crawlers/${editingId}`, { method: 'PATCH', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(form) })
         showToast('success', 'Fonte atualizada')
       } else {
-        await fetch('/api/admin/source-crawlers', {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify(form),
-        })
+        await fetch('/api/admin/source-crawlers', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(form) })
         showToast('success', 'Fonte criada')
       }
       setShowModal(false)
@@ -174,11 +160,7 @@ export default function FontesClient() {
   }
 
   const handleToggle = async (c: SourceCrawler) => {
-    await fetch(`/api/admin/source-crawlers/${c.id}`, {
-      method: 'PATCH',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ enabled: !c.enabled }),
-    })
+    await fetch(`/api/admin/source-crawlers/${c.id}`, { method: 'PATCH', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ enabled: !c.enabled }) })
     await fetchCrawlers()
   }
 
@@ -206,155 +188,188 @@ export default function FontesClient() {
     fetchItems(c.id)
   }
 
-  const fmtDate = (d: string | null) => {
-    if (!d) return '—'
-    return new Date(d).toLocaleString('pt-BR', { dateStyle: 'short', timeStyle: 'short' })
-  }
-
   return (
     <div className="space-y-6">
-      {toast && (
-        <div className={`fixed top-4 right-4 z-50 px-4 py-3 rounded-lg shadow-lg text-sm font-medium text-white ${toast.type === 'success' ? 'bg-green-600' : 'bg-red-600'}`}>
-          {toast.msg}
-        </div>
-      )}
-
+      {/* Header */}
       <div className="flex items-center justify-between">
         <div>
-          <h1 className="text-2xl font-bold" style={{ color: 'var(--at-text-primary)' }}>Fontes de Conteúdo</h1>
-          <p className="text-sm mt-1" style={{ color: 'var(--at-text-muted)' }}>
-            Agentes que buscam conteúdo externo e geram artigos automaticamente
+          <h2 className="text-xl font-bold text-neutral-900">Fontes de Conteúdo</h2>
+          <p className="text-sm text-gray-500 mt-1">
+            Agentes que buscam conteúdo externo e geram artigos automaticamente via pipeline de IA.
           </p>
         </div>
         <button
           onClick={openCreate}
-          className="px-4 py-2 rounded-lg text-sm font-medium text-white"
-          style={{ background: 'var(--at-brand)' }}
+          className="flex items-center gap-2 px-4 py-2 bg-brand-primary hover:bg-blue-700 text-white rounded-lg text-sm font-medium transition-colors"
         >
           + Nova Fonte
         </button>
       </div>
 
-      <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-        <div className="space-y-3">
-          {loading ? (
-            <p className="text-sm" style={{ color: 'var(--at-text-muted)' }}>Carregando...</p>
-          ) : crawlers.length === 0 ? (
-            <div className="text-center py-12 rounded-xl border border-dashed" style={{ borderColor: 'var(--at-border)', color: 'var(--at-text-muted)' }}>
-              <p className="text-sm">Nenhuma fonte configurada ainda.</p>
-              <button onClick={openCreate} className="mt-2 text-sm underline" style={{ color: 'var(--at-brand)' }}>Criar a primeira</button>
-            </div>
-          ) : crawlers.map((c) => (
-            <div
-              key={c.id}
-              onClick={() => selectCrawler(c)}
-              className={`p-4 rounded-xl border cursor-pointer transition-all ${selectedCrawler?.id === c.id ? 'ring-2' : ''}`}
-              style={{
-                background: 'var(--at-card-bg)',
-                borderColor: selectedCrawler?.id === c.id ? 'var(--at-brand)' : 'var(--at-border)',
-                '--tw-ring-color': 'var(--at-brand)',
-              } as React.CSSProperties}
-            >
-              <div className="flex items-start justify-between gap-3">
-                <div className="flex items-center gap-2 min-w-0">
-                  <span className="text-lg shrink-0">{TYPE_ICONS[c.type]}</span>
-                  <div className="min-w-0">
-                    <p className="font-medium text-sm truncate" style={{ color: 'var(--at-text-primary)' }}>{c.name}</p>
-                    <p className="text-xs mt-0.5 truncate" style={{ color: 'var(--at-text-muted)' }}>{TYPE_LABELS[c.type]} · a cada {c.interval_hours}h</p>
-                  </div>
-                </div>
-                <div className="flex items-center gap-2 shrink-0">
-                  <button
-                    onClick={(e) => { e.stopPropagation(); handleToggle(c) }}
-                    className={`relative w-9 h-5 rounded-full transition-colors ${c.enabled ? 'bg-green-500' : 'bg-gray-300'}`}
-                  >
-                    <span className={`absolute top-0.5 w-4 h-4 rounded-full bg-white shadow transition-transform ${c.enabled ? 'translate-x-4' : 'translate-x-0.5'}`} />
-                  </button>
-                  <button
-                    onClick={(e) => { e.stopPropagation(); handleRun(c.id) }}
-                    disabled={runningId === c.id}
-                    className="text-xs px-2 py-1 rounded-md font-medium transition-opacity disabled:opacity-50"
-                    style={{ background: 'var(--at-brand)', color: 'white' }}
-                  >
-                    {runningId === c.id ? '...' : '▶'}
-                  </button>
-                  <button
-                    onClick={(e) => { e.stopPropagation(); openEdit(c) }}
-                    className="text-xs px-2 py-1 rounded-md"
-                    style={{ background: 'var(--at-hover)', color: 'var(--at-text-secondary)' }}
-                  >✏️</button>
-                  <button
-                    onClick={(e) => { e.stopPropagation(); handleDelete(c.id) }}
-                    className="text-xs px-2 py-1 rounded-md text-red-500"
-                    style={{ background: 'var(--at-hover)' }}
-                  >🗑️</button>
-                </div>
-              </div>
-
-              <div className="mt-3 flex items-center gap-4 text-xs" style={{ color: 'var(--at-text-muted)' }}>
-                <span>✅ {c.items_done} artigos</span>
-                <span>Última: {fmtDate(c.last_run_at)}</span>
-                <span>Próxima: {fmtDate(c.next_run_at)}</span>
-              </div>
-
-              {c.last_error && (
-                <p className="mt-2 text-xs text-red-500 truncate">⚠️ {c.last_error}</p>
-              )}
-            </div>
-          ))}
+      {/* Toast */}
+      {toast && (
+        <div className={`p-3 rounded-lg text-sm font-medium ${toast.type === 'success' ? 'bg-green-50 text-green-700 border border-green-200' : 'bg-red-50 text-red-700 border border-red-200'}`}>
+          {toast.msg}
         </div>
+      )}
 
-        {selectedCrawler && (
-          <div className="rounded-xl border p-4 space-y-3" style={{ background: 'var(--at-card-bg)', borderColor: 'var(--at-border)' }}>
-            <h2 className="font-semibold text-sm" style={{ color: 'var(--at-text-primary)' }}>
-              Histórico — {selectedCrawler.name}
-            </h2>
-            {loadingItems ? (
-              <p className="text-xs" style={{ color: 'var(--at-text-muted)' }}>Carregando...</p>
-            ) : items.length === 0 ? (
-              <p className="text-xs" style={{ color: 'var(--at-text-muted)' }}>Nenhuma execução ainda.</p>
-            ) : (
-              <div className="space-y-2 max-h-96 overflow-y-auto">
-                {items.map((item) => (
-                  <div key={item.id} className="text-xs p-2 rounded-lg" style={{ background: 'var(--at-hover)' }}>
-                    <div className="flex items-center justify-between gap-2">
-                      <span className={`font-medium ${item.status === 'done' ? 'text-green-600' : 'text-red-500'}`}>
-                        {item.status === 'done' ? '✅' : '❌'} {item.item_title ?? item.item_key}
-                      </span>
-                      <span style={{ color: 'var(--at-text-muted)' }}>{fmtDate(item.processed_at)}</span>
-                    </div>
-                    {item.post_id && (
-                      <a
-                        href={`/admin/artigos/${item.post_id}`}
-                        className="mt-1 block text-xs underline"
-                        style={{ color: 'var(--at-brand)' }}
-                        onClick={(e) => e.stopPropagation()}
-                      >
-                        Ver artigo #{item.post_id}
-                      </a>
-                    )}
-                    {item.error && <p className="mt-1 text-red-400 truncate">{item.error}</p>}
-                  </div>
-                ))}
-              </div>
-            )}
-          </div>
-        )}
+      {/* Info banner */}
+      <div className="bg-blue-50 border border-blue-200 rounded-lg p-4 text-sm text-blue-700">
+        <strong>Como funciona:</strong> Cada fonte busca conteúdo em um serviço externo (GitHub, documentações ou URLs), usa IA para escolher o item mais relevante ainda não processado e aciona o pipeline padrão para gerar e publicar um artigo. O Supabase pg_cron executa automaticamente no intervalo configurado.
       </div>
 
+      {/* Content */}
+      {loading ? (
+        <div className="text-center py-12 text-gray-500">Carregando fontes...</div>
+      ) : crawlers.length === 0 ? (
+        <div className="bg-white rounded-xl border border-gray-200 p-12 text-center">
+          <div className="text-5xl mb-4">🔍</div>
+          <h3 className="text-lg font-semibold text-gray-700 mb-2">Nenhuma fonte configurada</h3>
+          <p className="text-sm text-gray-500 mb-6">Adicione uma fonte para que o sistema busque conteúdo automaticamente e gere artigos.</p>
+          <button onClick={openCreate} className="px-6 py-2 bg-brand-primary text-white rounded-lg text-sm font-medium hover:bg-blue-700 transition-colors">
+            Adicionar primeira fonte
+          </button>
+        </div>
+      ) : (
+        <div className="flex gap-4">
+          {/* Crawler list */}
+          <div className="flex-1 min-w-0 space-y-3">
+            {crawlers.map((c) => (
+              <div
+                key={c.id}
+                onClick={() => selectCrawler(c)}
+                className={`bg-white rounded-xl border p-4 cursor-pointer transition-colors hover:border-brand-primary ${selectedCrawler?.id === c.id ? 'border-brand-primary ring-1 ring-brand-primary' : 'border-gray-200'}`}
+              >
+                <div className="flex items-start justify-between gap-3">
+                  <div className="flex items-start gap-3 min-w-0">
+                    <span className="text-2xl">{TYPE_ICONS[c.type]}</span>
+                    <div className="min-w-0">
+                      <div className="flex items-center gap-2 flex-wrap">
+                        <span className="font-semibold text-gray-900">{c.name}</span>
+                        <span className="px-2 py-0.5 bg-gray-100 text-gray-600 rounded-full text-xs">{TYPE_LABELS[c.type]}</span>
+                        {c.publish_status === 'published'
+                          ? <span className="px-2 py-0.5 bg-green-100 text-green-700 rounded-full text-xs">Publica direto</span>
+                          : <span className="px-2 py-0.5 bg-yellow-100 text-yellow-700 rounded-full text-xs">Salva como rascunho</span>
+                        }
+                      </div>
+                      <p className="text-xs text-gray-400 mt-1 truncate">{c.url}</p>
+                      <div className="flex items-center gap-3 mt-2 text-xs text-gray-500 flex-wrap">
+                        <span>A cada {INTERVAL_OPTIONS.find((o) => o.value === c.interval_hours)?.label ?? `${c.interval_hours}h`}</span>
+                        <span>•</span>
+                        <span>Última execução: {formatDate(c.last_run_at)}</span>
+                        <span>•</span>
+                        <span>{c.items_done} artigo(s) gerado(s)</span>
+                      </div>
+                      {c.last_error && (
+                        <p className="mt-1 text-xs text-red-600 bg-red-50 rounded px-2 py-0.5 inline-block">
+                          Erro: {c.last_error.slice(0, 120)}
+                        </p>
+                      )}
+                    </div>
+                  </div>
+
+                  <div className="flex items-center gap-2 shrink-0" onClick={(e) => e.stopPropagation()}>
+                    {/* Toggle */}
+                    <button
+                      title={c.enabled ? 'Desativar' : 'Ativar'}
+                      onClick={() => handleToggle(c)}
+                      className={`relative inline-flex h-5 w-9 items-center rounded-full transition-colors ${c.enabled ? 'bg-brand-primary' : 'bg-gray-300'}`}
+                    >
+                      <span className={`inline-block h-3 w-3 transform rounded-full bg-white transition-transform ${c.enabled ? 'translate-x-5' : 'translate-x-1'}`} />
+                    </button>
+
+                    {/* Run now */}
+                    <button
+                      title="Executar agora"
+                      onClick={() => handleRun(c.id)}
+                      disabled={runningId === c.id}
+                      className="p-1.5 text-gray-500 hover:text-brand-primary hover:bg-blue-50 rounded-lg transition-colors disabled:opacity-50"
+                    >
+                      {runningId === c.id ? (
+                        <svg className="animate-spin w-4 h-4" fill="none" viewBox="0 0 24 24">
+                          <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" />
+                          <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z" />
+                        </svg>
+                      ) : (
+                        <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                          <polygon points="5,3 19,12 5,21" fill="currentColor" />
+                        </svg>
+                      )}
+                    </button>
+
+                    {/* Edit */}
+                    <button
+                      title="Editar"
+                      onClick={() => openEdit(c)}
+                      className="p-1.5 text-gray-500 hover:text-brand-primary hover:bg-blue-50 rounded-lg transition-colors"
+                    >
+                      <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z" />
+                      </svg>
+                    </button>
+
+                    {/* Delete */}
+                    <button
+                      title="Remover"
+                      onClick={() => handleDelete(c.id)}
+                      className="p-1.5 text-gray-500 hover:text-red-600 hover:bg-red-50 rounded-lg transition-colors"
+                    >
+                      <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
+                      </svg>
+                    </button>
+                  </div>
+                </div>
+              </div>
+            ))}
+          </div>
+
+          {/* History panel */}
+          {selectedCrawler && (
+            <div className="w-80 shrink-0">
+              <div className="bg-white rounded-xl border border-gray-200 p-4 space-y-3">
+                <h3 className="font-semibold text-gray-900 text-sm">Histórico — {selectedCrawler.name}</h3>
+                {loadingItems ? (
+                  <p className="text-xs text-gray-500 text-center py-4">Carregando...</p>
+                ) : items.length === 0 ? (
+                  <p className="text-xs text-gray-500 text-center py-4">Nenhuma execução ainda.</p>
+                ) : (
+                  <div className="space-y-2 max-h-96 overflow-y-auto">
+                    {items.map((item) => (
+                      <div key={item.id} className="text-xs p-2 rounded-lg bg-gray-50 border border-gray-100">
+                        <div className="flex items-start justify-between gap-2">
+                          <span className={`font-medium ${item.status === 'done' ? 'text-green-700' : 'text-red-600'}`}>
+                            {item.status === 'done' ? '✅' : '❌'} {item.item_title ?? item.item_key}
+                          </span>
+                          <span className="text-gray-400 shrink-0">{formatDate(item.processed_at)}</span>
+                        </div>
+                        {item.post_id && (
+                          <a href={`/admin/artigos/${item.post_id}`} className="mt-1 block text-brand-primary underline text-xs" onClick={(e) => e.stopPropagation()}>
+                            Ver artigo #{item.post_id}
+                          </a>
+                        )}
+                        {item.error && <p className="mt-1 text-red-500 truncate">{item.error}</p>}
+                      </div>
+                    ))}
+                  </div>
+                )}
+              </div>
+            </div>
+          )}
+        </div>
+      )}
+
+      {/* Modal */}
       {showModal && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center p-4" style={{ background: 'rgba(0,0,0,0.5)' }}>
-          <div className="w-full max-w-lg rounded-2xl shadow-xl p-6 space-y-4" style={{ background: 'var(--at-card-bg)' }}>
-            <h2 className="font-bold text-lg" style={{ color: 'var(--at-text-primary)' }}>
-              {editingId ? 'Editar Fonte' : 'Nova Fonte'}
-            </h2>
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/50">
+          <div className="bg-white rounded-2xl shadow-xl w-full max-w-lg p-6 space-y-4">
+            <h2 className="font-bold text-lg text-gray-900">{editingId ? 'Editar Fonte' : 'Nova Fonte'}</h2>
 
             <div className="space-y-3">
               <div>
-                <label className="block text-xs font-medium mb-1" style={{ color: 'var(--at-text-secondary)' }}>Nome</label>
+                <label className="block text-xs font-medium text-gray-700 mb-1">Nome</label>
                 <input
-                  className="w-full rounded-lg px-3 py-2 text-sm border"
-                  style={{ background: 'var(--at-input-bg)', borderColor: 'var(--at-border)', color: 'var(--at-text-primary)' }}
+                  className="w-full rounded-lg px-3 py-2 text-sm border border-gray-300 focus:outline-none focus:ring-2 focus:ring-brand-primary"
                   value={form.name}
                   onChange={(e) => setForm((f) => ({ ...f, name: e.target.value }))}
                   placeholder="Ex: GitHub AI Repos"
@@ -362,10 +377,9 @@ export default function FontesClient() {
               </div>
 
               <div>
-                <label className="block text-xs font-medium mb-1" style={{ color: 'var(--at-text-secondary)' }}>Tipo</label>
+                <label className="block text-xs font-medium text-gray-700 mb-1">Tipo</label>
                 <select
-                  className="w-full rounded-lg px-3 py-2 text-sm border"
-                  style={{ background: 'var(--at-input-bg)', borderColor: 'var(--at-border)', color: 'var(--at-text-primary)' }}
+                  className="w-full rounded-lg px-3 py-2 text-sm border border-gray-300 focus:outline-none focus:ring-2 focus:ring-brand-primary"
                   value={form.type}
                   onChange={(e) => setForm((f) => ({ ...f, type: e.target.value as CrawlerType }))}
                 >
@@ -376,37 +390,34 @@ export default function FontesClient() {
               </div>
 
               <div>
-                <label className="block text-xs font-medium mb-1" style={{ color: 'var(--at-text-secondary)' }}>
+                <label className="block text-xs font-medium text-gray-700 mb-1">
                   {form.type === 'github' ? 'Termo de busca' : 'URL'}
                 </label>
                 <input
-                  className="w-full rounded-lg px-3 py-2 text-sm border"
-                  style={{ background: 'var(--at-input-bg)', borderColor: 'var(--at-border)', color: 'var(--at-text-primary)' }}
+                  className="w-full rounded-lg px-3 py-2 text-sm border border-gray-300 focus:outline-none focus:ring-2 focus:ring-brand-primary"
                   value={form.url}
                   onChange={(e) => setForm((f) => ({ ...f, url: e.target.value }))}
                   placeholder={URL_HINTS[form.type]}
                 />
-                <p className="text-xs mt-1" style={{ color: 'var(--at-text-muted)' }}>{URL_HINTS[form.type]}</p>
+                <p className="text-xs text-gray-400 mt-1">{URL_HINTS[form.type]}</p>
               </div>
 
               <div>
-                <label className="block text-xs font-medium mb-1" style={{ color: 'var(--at-text-secondary)' }}>Prompt de direcionamento</label>
+                <label className="block text-xs font-medium text-gray-700 mb-1">Prompt de direcionamento</label>
                 <textarea
                   rows={3}
-                  className="w-full rounded-lg px-3 py-2 text-sm border resize-none"
-                  style={{ background: 'var(--at-input-bg)', borderColor: 'var(--at-border)', color: 'var(--at-text-primary)' }}
+                  className="w-full rounded-lg px-3 py-2 text-sm border border-gray-300 focus:outline-none focus:ring-2 focus:ring-brand-primary resize-none"
                   value={form.prompt}
                   onChange={(e) => setForm((f) => ({ ...f, prompt: e.target.value }))}
-                  placeholder="Ex: Prefira repositórios sobre IA generativa e LLMs que tenham mais de 1000 stars e sejam relevantes para desenvolvedores brasileiros."
+                  placeholder="Ex: Prefira repositórios sobre IA generativa com mais de 1000 stars, relevantes para desenvolvedores brasileiros."
                 />
               </div>
 
               <div className="grid grid-cols-2 gap-3">
                 <div>
-                  <label className="block text-xs font-medium mb-1" style={{ color: 'var(--at-text-secondary)' }}>Intervalo</label>
+                  <label className="block text-xs font-medium text-gray-700 mb-1">Intervalo</label>
                   <select
-                    className="w-full rounded-lg px-3 py-2 text-sm border"
-                    style={{ background: 'var(--at-input-bg)', borderColor: 'var(--at-border)', color: 'var(--at-text-primary)' }}
+                    className="w-full rounded-lg px-3 py-2 text-sm border border-gray-300 focus:outline-none focus:ring-2 focus:ring-brand-primary"
                     value={form.interval_hours}
                     onChange={(e) => setForm((f) => ({ ...f, interval_hours: parseFloat(e.target.value) }))}
                   >
@@ -416,10 +427,9 @@ export default function FontesClient() {
                   </select>
                 </div>
                 <div>
-                  <label className="block text-xs font-medium mb-1" style={{ color: 'var(--at-text-secondary)' }}>Publicar como</label>
+                  <label className="block text-xs font-medium text-gray-700 mb-1">Publicar como</label>
                   <select
-                    className="w-full rounded-lg px-3 py-2 text-sm border"
-                    style={{ background: 'var(--at-input-bg)', borderColor: 'var(--at-border)', color: 'var(--at-text-primary)' }}
+                    className="w-full rounded-lg px-3 py-2 text-sm border border-gray-300 focus:outline-none focus:ring-2 focus:ring-brand-primary"
                     value={form.publish_status}
                     onChange={(e) => setForm((f) => ({ ...f, publish_status: e.target.value as PublishStatus }))}
                   >
@@ -434,15 +444,13 @@ export default function FontesClient() {
               <button
                 onClick={handleSave}
                 disabled={saving}
-                className="flex-1 py-2 rounded-lg text-sm font-medium text-white disabled:opacity-50"
-                style={{ background: 'var(--at-brand)' }}
+                className="flex-1 py-2 rounded-lg text-sm font-medium text-white bg-brand-primary hover:bg-blue-700 disabled:opacity-50 transition-colors"
               >
                 {saving ? 'Salvando...' : 'Salvar'}
               </button>
               <button
                 onClick={() => setShowModal(false)}
-                className="px-4 py-2 rounded-lg text-sm"
-                style={{ background: 'var(--at-hover)', color: 'var(--at-text-secondary)' }}
+                className="px-4 py-2 rounded-lg text-sm text-gray-700 bg-gray-100 hover:bg-gray-200 transition-colors"
               >
                 Cancelar
               </button>
