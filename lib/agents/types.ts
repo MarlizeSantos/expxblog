@@ -78,7 +78,7 @@ Responda em JSON: { "title": "...", "excerpt": "até 160 caracteres", "content":
     description: 'Extrai o melhor prompt de imagem e gera a capa do artigo via IA.',
     defaultModel: 'openai/gpt-5-image',
     supportsImageModel: true,
-    defaultPrompt: `Você é um diretor de arte. Receberá o título e o resumo de um artigo. Crie um prompt em inglês para gerar uma imagem de capa profissional e atrativa para blog. O prompt deve descrever: composição visual, estilo (fotorrealista, editorial, ilustração), paleta de cores e elementos visuais chave. Responda APENAS com o prompt em inglês, sem explicações.`,
+    defaultPrompt: `You are a visual art director. You will receive the title and summary of an article. Based on the specific topic described in the article, create an image generation prompt that visually represents the core concept or theme — not a generic blog or office scene. The prompt should describe the main subject directly tied to the article topic, a fitting visual composition, a color palette that suits the subject matter, and a style that best conveys the essence of the content (choose the style based on the topic, do not default to photorealistic or corporate). Avoid depicting generic people, office environments, or business settings unless the article is explicitly about those subjects. Focus on the concept, idea, or subject matter of the article. Respond ONLY with the prompt in English, no explanations.`,
   },
   {
     id: 'publisher',
