@@ -7,6 +7,7 @@ import { eq, count, sql } from 'drizzle-orm'
 
 export const dynamic = 'force-dynamic'
 import { generateSlug } from '@/lib/slug'
+import { revalidatePublicPosts } from '@/lib/revalidate'
 
 const sanitizeOptions: sanitizeHtml.IOptions = {
   allowedTags: sanitizeHtml.defaults.allowedTags.concat(['h2', 'h3', 'img']),
@@ -99,6 +100,8 @@ export async function POST(request: Request) {
         tag_ids.map((tag_id) => ({ post_id: post.id, tag_id }))
       )
     }
+
+    if (post.status === 'published') revalidatePublicPosts(post.slug)
 
     return NextResponse.json({ post }, { status: 201 })
   } catch (err: unknown) {

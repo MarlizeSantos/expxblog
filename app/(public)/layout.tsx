@@ -10,7 +10,12 @@ import { getSettings } from '@/lib/settings'
 import { getAppUrl } from '@/lib/app-url'
 import type { Metadata } from 'next'
 
-export const dynamic = 'force-dynamic'
+// ISR: páginas públicas servidas de cache e regeneradas no máximo a cada 5 min.
+// Sob carga, isso evita uma rodada de queries TCP ao Postgres por visita
+// (o pool é max:1 por lambda — sem cache, requests entram em fila e dão timeout).
+// Publicação/edição de post no admin dispara revalidatePath() para refletir na hora,
+// então a janela longa não atrasa conteúdo novo.
+export const revalidate = 300
 
 export async function generateMetadata(): Promise<Metadata> {
   const { company } = await getSettings()

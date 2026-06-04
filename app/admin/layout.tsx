@@ -8,6 +8,7 @@ import { AdminTopBar } from '@/components/admin/AdminTopBar'
 import { getDbPendingMigrations } from '@/lib/db-migrations'
 import { MIGRATION_ORDER } from '@/lib/migrations-embedded'
 import { DbUpdateModal } from '@/components/blog/DbUpdateModal'
+import OnboardingWizard from '@/components/admin/OnboardingWizard'
 
 const navItems = [
   {
@@ -119,6 +120,7 @@ export default async function AdminLayout({ children }: { children: React.ReactN
   return (
     <AdminThemeProvider>
       <DbUpdateModal pending={pendingMigrations} />
+      <OnboardingWizard />
       <div className="min-h-screen flex admin-shell">
         {/* Sidebar */}
         <aside className="admin-sidebar w-[220px] flex flex-col shrink-0">

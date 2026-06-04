@@ -116,6 +116,8 @@ export function ConfiguracoesClient({ initial, initialAI, initialTelegram, initi
   const [dbTestState, setDbTestState] = useState<'idle' | 'testing' | 'ok' | 'error'>('idle')
   const [dbTestMsg, setDbTestMsg] = useState('')
   const [dbSaveState, setDbSaveState] = useState<'idle' | 'saving'>('idle')
+  const [dbMode, setDbMode] = useState<'session' | 'transaction' | 'direct' | null>(null)
+  const [dbModeSaving, setDbModeSaving] = useState(false)
 
   // AI Logs state
   type AiLogEntry = {
@@ -189,10 +191,11 @@ export function ConfiguracoesClient({ initial, initialAI, initialTelegram, initi
     if (activeSection === 'banco') {
       fetch('/api/admin/settings/database-url')
         .then((r) => (r.ok ? r.json() : null))
-        .then((d: { masked: string; source: 'env' | 'custom' } | null) => {
+        .then((d: { masked: string; source: 'env' | 'custom'; mode: 'session' | 'transaction' | 'direct' | null } | null) => {
           if (d) {
             setDbUrlMasked(d.masked)
             setDbUrlSource(d.source)
+            setDbMode(d.mode)
           }
         })
         .catch(() => {})
@@ -354,6 +357,37 @@ export function ConfiguracoesClient({ initial, initialAI, initialTelegram, initi
       setTimeout(() => setToast(null), 3000)
     } finally {
       setDbSaveState('idle')
+    }
+  }
+
+  async function handleDbModeChange(mode: 'session' | 'transaction' | 'direct') {
+    if (mode === dbMode || dbModeSaving) return
+    setDbModeSaving(true)
+    setToast(null)
+    try {
+      const res = await fetch('/api/admin/settings', {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ database: { mode } }),
+      })
+      if (!res.ok) {
+        const data = await res.json().catch(() => ({}))
+        throw new Error(data.error || 'Erro ao alterar modo de conexão')
+      }
+      // Recarrega a conexão atual para refletir a nova porta/modo.
+      const info = await fetch('/api/admin/settings/database-url').then((r) => (r.ok ? r.json() : null))
+      if (info) {
+        setDbUrlMasked(info.masked)
+        setDbUrlSource(info.source)
+        setDbMode(info.mode)
+      }
+      setToast({ type: 'success', msg: 'Modo de conexão alterado com sucesso.' })
+      setTimeout(() => setToast(null), 3000)
+    } catch (err) {
+      setToast({ type: 'error', msg: err instanceof Error ? err.message : 'Erro ao alterar modo de conexão' })
+      setTimeout(() => setToast(null), 3000)
+    } finally {
+      setDbModeSaving(false)
     }
   }
 
@@ -1005,6 +1039,72 @@ export function ConfiguracoesClient({ initial, initialAI, initialTelegram, initi
                 </div>
               ) : (
                 <span className="text-sm text-gray-400 animate-pulse">Carregando...</span>
+              )}
+            </div>
+
+            {/* Connection mode selector */}
+            <div className="space-y-3">
+              <div>
+                <label className="block text-sm font-medium text-gray-700">Modo de conexão</label>
+                <p className="text-xs text-gray-400 mt-0.5">
+                  Reescreve a porta da URL atual e reconecta. Para escala em serverless, prefira o Transaction pooler.
+                </p>
+              </div>
+              <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
+                {([
+                  {
+                    id: 'transaction' as const,
+                    label: 'Transaction',
+                    port: '6543',
+                    desc: 'Muitas conexões curtas. Recomendado para serverless/Vercel e alta carga.',
+                    recommended: true,
+                  },
+                  {
+                    id: 'session' as const,
+                    label: 'Session',
+                    port: '5432',
+                    desc: 'Uma conexão por cliente. Use para migrations e LISTEN/NOTIFY.',
+                    recommended: false,
+                  },
+                  {
+                    id: 'direct' as const,
+                    label: 'Direct',
+                    port: '5432',
+                    desc: 'Conexão direta sem pooler (host db.*). Esgota conexões rápido.',
+                    recommended: false,
+                  },
+                ]).map((opt) => {
+                  const active = dbMode === opt.id
+                  return (
+                    <button
+                      key={opt.id}
+                      type="button"
+                      onClick={() => void handleDbModeChange(opt.id)}
+                      disabled={dbModeSaving || dbMode === null}
+                      className={`text-left p-3 rounded-lg border transition-colors disabled:opacity-60 disabled:cursor-not-allowed ${
+                        active
+                          ? 'border-brand-primary bg-brand-primary/5 ring-1 ring-brand-primary/30'
+                          : 'border-gray-200 hover:border-gray-300 bg-white'
+                      }`}
+                    >
+                      <div className="flex items-center justify-between mb-1">
+                        <span className={`text-sm font-semibold ${active ? 'text-brand-primary' : 'text-neutral-900'}`}>
+                          {opt.label}
+                        </span>
+                        <span className="font-mono text-[11px] text-gray-500">:{opt.port}</span>
+                      </div>
+                      {opt.recommended && (
+                        <span className="inline-block text-[10px] px-1.5 py-0.5 rounded-full bg-brand-secondary/15 text-brand-secondary font-medium mb-1">
+                          recomendado
+                        </span>
+                      )}
+                      <p className="text-[11px] text-gray-500 leading-snug">{opt.desc}</p>
+                    </button>
+                  )
+                })}
+              </div>
+              {dbModeSaving && (
+                <p className="text-[13px] text-gray-500 animate-pulse">Aplicando modo de conexão...</p>
               )}
             </div>
 

@@ -5,6 +5,7 @@ import { db } from '@/drizzle/db'
 import { posts, postCategories, postTags, categories, tags } from '@/drizzle/schema'
 import { eq } from 'drizzle-orm'
 import { verifyApiToken } from '@/lib/api-auth'
+import { revalidatePublicPosts } from '@/lib/revalidate'
 
 const sanitizeOptions: sanitizeHtml.IOptions = {
   allowedTags: sanitizeHtml.defaults.allowedTags.concat(['h2', 'h3', 'img']),
@@ -129,6 +130,9 @@ export async function PUT(
       }
     }
 
+    if (existing[0].slug !== updated.slug) revalidatePublicPosts(existing[0].slug)
+    revalidatePublicPosts(updated.slug)
+
     return NextResponse.json({ post: updated })
   } catch {
     return NextResponse.json({ error: 'Erro interno do servidor' }, { status: 500 })
@@ -152,6 +156,7 @@ export async function DELETE(
     }
 
     await db.delete(posts).where(eq(posts.id, id))
+    revalidatePublicPosts(existing[0].slug)
     return NextResponse.json({ success: true })
   } catch {
     return NextResponse.json({ error: 'Erro interno do servidor' }, { status: 500 })

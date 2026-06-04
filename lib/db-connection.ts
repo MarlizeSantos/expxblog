@@ -19,10 +19,67 @@ declare global {
   var __drizzleDb: PostgresJsDatabase<typeof schema> | undefined
 }
 
+/**
+ * Modos de conexão ao Supabase Postgres.
+ * - session: pooler porta 5432, 1 conexão por cliente (migrations, LISTEN/NOTIFY).
+ *   Limite baixo de conexões — em serverless cada lambda mantém seu pool, então max:1.
+ * - transaction: pooler porta 6543, muitas conexões curtas. Ideal serverless/Vercel,
+ *   suporta mais conexões concorrentes — max maior. NÃO suporta prepared statements
+ *   de sessão (por isso o driver já usa prepare:false em todo o projeto).
+ * - direct: conexão direta porta 5432 (host db.*.supabase.co), sem pooler.
+ */
+export type DbMode = 'session' | 'transaction' | 'direct'
+
+/** Porta de cada modo de pooler. */
+const MODE_PORT: Record<DbMode, string> = {
+  session: '5432',
+  transaction: '6543',
+  direct: '5432',
+}
+
+/**
+ * Deduz o modo a partir da URL atual.
+ * Porta 6543 → transaction. Host db.*.supabase.co (sem "pooler") → direct.
+ * Caso contrário → session (default do session pooler na 5432).
+ */
+export function detectDbMode(url: string): DbMode {
+  try {
+    const parsed = new URL(url)
+    if (parsed.port === '6543') return 'transaction'
+    if (/^db\./.test(parsed.hostname) && !parsed.hostname.includes('pooler')) {
+      return 'direct'
+    }
+    return 'session'
+  } catch {
+    return 'session'
+  }
+}
+
+/**
+ * Reescreve a porta da URL para o modo escolhido, preservando o resto
+ * (usuário, senha, host, dbname, query string). Não altera o host — o
+ * session e o transaction pooler do Supabase usam o mesmo host pooler,
+ * mudando apenas a porta (5432 ↔ 6543).
+ */
+export function applyDbMode(url: string, mode: DbMode): string {
+  const parsed = new URL(url)
+  parsed.port = MODE_PORT[mode]
+  return parsed.toString()
+}
+
+/**
+ * Tamanho do pool por modo. O transaction pooler aguenta muitas conexões
+ * concorrentes; o session pooler limita a ~15, então mantemos max:1 por lambda
+ * para não estourar quando várias instâncias rodam em paralelo no Fluid Compute.
+ */
+export function poolMaxForMode(mode: DbMode): number {
+  return mode === 'transaction' ? 10 : 1
+}
+
 function makeClient(url: string): ReturnType<typeof postgres> {
   return postgres(url, {
     ssl: { rejectUnauthorized: false },
-    max: 5,
+    max: poolMaxForMode(detectDbMode(url)),
     prepare: false,
     connect_timeout: 10,
     idle_timeout: 30,

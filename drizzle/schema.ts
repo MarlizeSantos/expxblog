@@ -40,6 +40,15 @@ export const posts = pgTable(
   (t) => ({
     statusIdx: index('posts_status_idx').on(t.status),
     publishedAtIdx: index('posts_published_at_idx').on(t.published_at),
+    // Índice parcial para as duas queries mais quentes do blog público:
+    // post-por-slug e listagem ordenada — ambas filtram status = 'published'.
+    // Cobre slug (lookup) e published_at desc (ordenação) sem indexar drafts.
+    publishedSlugIdx: index('posts_published_slug_idx')
+      .on(t.slug)
+      .where(sql`${t.status} = 'published'`),
+    publishedPublishedAtIdx: index('posts_published_published_at_idx')
+      .on(sql`${t.published_at} DESC`)
+      .where(sql`${t.status} = 'published'`),
   })
 )
 

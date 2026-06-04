@@ -1,5 +1,5 @@
 import { db } from '@/drizzle/db'
-import { posts, postCategories, categories, tags, postTags } from '@/drizzle/schema'
+import { posts, postCategories, categories, tags, postTags, siteSettings, articleThemes } from '@/drizzle/schema'
 import { eq, and, asc, desc, count, inArray, sql } from 'drizzle-orm'
 
 export async function getPostsPage(params: {
@@ -133,5 +133,36 @@ export async function getAllCategories() {
     return await db.select().from(categories).orderBy(asc(categories.name))
   } catch {
     return []
+  }
+}
+
+export async function getOnboardingStatus(): Promise<{
+  hasApiKey: boolean
+  hasBriefing: boolean
+  themesCount: number
+  hasFirstArticle: boolean
+}> {
+  try {
+    const [apiKeyRow, briefingRow, themesCountResult, postsCountResult] = await Promise.all([
+      db.select({ value: siteSettings.value })
+        .from(siteSettings)
+        .where(eq(siteSettings.key, 'ai_api_key'))
+        .limit(1),
+      db.select({ value: siteSettings.value })
+        .from(siteSettings)
+        .where(eq(siteSettings.key, 'briefing_content'))
+        .limit(1),
+      db.select({ total: count() }).from(articleThemes),
+      db.select({ total: count() }).from(posts),
+    ])
+
+    const hasApiKey = apiKeyRow.length > 0 && !!apiKeyRow[0].value?.trim()
+    const hasBriefing = briefingRow.length > 0 && !!briefingRow[0].value?.trim()
+    const themesCount = themesCountResult[0]?.total ?? 0
+    const hasFirstArticle = (postsCountResult[0]?.total ?? 0) > 0
+
+    return { hasApiKey, hasBriefing, themesCount, hasFirstArticle }
+  } catch {
+    return { hasApiKey: false, hasBriefing: false, themesCount: 0, hasFirstArticle: false }
   }
 }

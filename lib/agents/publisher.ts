@@ -4,6 +4,7 @@ import { db } from '@/drizzle/db'
 import { posts, postCategories, categories, articleThemes, automationConfig, siteSettings, newsletterSubscribers } from '@/drizzle/schema'
 import { eq } from 'drizzle-orm'
 import { generateSlug } from '@/lib/slug'
+import { revalidatePublicPosts } from '@/lib/revalidate'
 import { AgentContext, AgentResult, PublisherTriggers } from '@/lib/agents/types'
 import { aiChat } from '@/lib/ai'
 
@@ -73,6 +74,9 @@ export async function runPublisherAgent(
   } catch (err) {
     console.warn('[Publisher] Falha ao categorizar artigo:', err instanceof Error ? err.message : String(err))
   }
+
+  // Revalida o cache ISR das páginas públicas para o post aparecer na hora.
+  if (post.status === 'published') revalidatePublicPosts(post.slug)
 
   // Mark theme as used
   if (ctx.themeId) {

@@ -1,6 +1,7 @@
 import postgres from 'postgres'
 import { drizzle, type PostgresJsDatabase } from 'drizzle-orm/postgres-js'
 import * as schema from './schema'
+import { detectDbMode, poolMaxForMode } from '@/lib/db-connection'
 
 declare global {
   // eslint-disable-next-line no-var
@@ -12,12 +13,14 @@ declare global {
 }
 
 function makeClient(url: string): ReturnType<typeof postgres> {
+  // O max do pool é derivado do modo de conexão (porta da URL):
+  // - session pooler (5432) / direct: max:1 — o session pooler limita a ~15
+  //   conexões e cada lambda no Fluid Compute mantém seu próprio pool.
+  // - transaction pooler (6543): max:10 — aguenta muitas conexões curtas.
+  // O modo é configurável em /admin → Banco de Dados (reescreve a porta da URL).
   return postgres(url, {
     ssl: { rejectUnauthorized: false },
-    // Supabase session pooler limita a 15 conexões. Em serverless (Vercel/Fluid
-    // Compute) cada instância de lambda mantém seu próprio pool; manter max baixo
-    // evita estourar o limite quando várias lambdas rodam em paralelo.
-    max: 1,
+    max: poolMaxForMode(detectDbMode(url)),
     prepare: false,
     connect_timeout: 10,
     idle_timeout: 20,

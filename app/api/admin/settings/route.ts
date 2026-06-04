@@ -3,6 +3,7 @@ import { z } from 'zod'
 import { db, reconnectDb } from '@/drizzle/db'
 import { siteSettings } from '@/drizzle/schema'
 import { getSettings } from '@/lib/settings'
+import { applyDbMode } from '@/lib/db-connection'
 import { eq } from 'drizzle-orm'
 
 export const dynamic = 'force-dynamic'
@@ -96,10 +97,15 @@ const putSchema = z.object({
     .optional(),
   database: z
     .object({
-      url: z.string().refine(
-        (v) => v.startsWith('postgresql://') || v.startsWith('postgres://'),
-        { message: 'URL deve começar com postgresql:// ou postgres://' }
-      ),
+      url: z
+        .string()
+        .refine(
+          (v) => v.startsWith('postgresql://') || v.startsWith('postgres://'),
+          { message: 'URL deve começar com postgresql:// ou postgres://' }
+        )
+        .optional(),
+      // Modo de conexão: reescreve a porta da URL (session=5432, transaction=6543, direct=5432).
+      mode: z.enum(['session', 'transaction', 'direct']).optional(),
     })
     .optional(),
 })
@@ -203,10 +209,38 @@ export async function PUT(request: Request) {
       await upsertSetting('telegram_config', JSON.stringify({ ...existing, ...telegram }))
     }
 
-    if (database?.url !== undefined) {
-      await upsertSetting('database_url', database.url)
+    if (database !== undefined && (database.url !== undefined || database.mode !== undefined)) {
+      // URL base: a nova fornecida, senão a já salva, senão a env var.
+      let nextUrl = database.url
+      if (nextUrl === undefined) {
+        const rows = await db
+          .select()
+          .from(siteSettings)
+          .where(eq(siteSettings.key, 'database_url'))
+          .limit(1)
+        nextUrl = (rows.length > 0 && rows[0].value) || process.env.DATABASE_URL || ''
+      }
+
+      if (!nextUrl) {
+        return NextResponse.json(
+          { error: 'Nenhuma DATABASE_URL configurada para aplicar o modo' },
+          { status: 400 }
+        )
+      }
+
+      // Se o modo foi informado, reescreve a porta da URL conforme o modo.
+      if (database.mode !== undefined) {
+        try {
+          nextUrl = applyDbMode(nextUrl, database.mode)
+        } catch {
+          return NextResponse.json({ error: 'URL de banco inválida' }, { status: 400 })
+        }
+      }
+
+      await upsertSetting('database_url', nextUrl)
       // Reconecta o pool em memória para queries subsequentes nesta instância
-      reconnectDb(database.url)
+      // (o max do pool é derivado da porta/modo da nova URL).
+      reconnectDb(nextUrl)
     }
 
     const current = await getSettings()
