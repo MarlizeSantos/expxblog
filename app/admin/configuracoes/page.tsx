@@ -1,9 +1,11 @@
-import { getSettings, getLgpdSettings } from '@/lib/settings'
+import { getSettings, getLgpdSettings, getChatAssistantConfig, type FacebookPixelConfig } from '@/lib/settings'
+import { getSeoSettings } from '@/lib/seo'
 import { getDefaultModels, getAIApiKey, getAIModelFromDB } from '@/lib/ai'
 import { getTelegramConfig } from '@/lib/telegram'
 import { getFirecrawlApiKey } from '@/lib/firecrawl'
 import { getPexelsApiKey } from '@/lib/pexels'
 import { getResendApiKey, getNewsletterFromEmail, getNewsletterAutoSend } from '@/lib/email'
+import { getAdSenseConfig } from '@/lib/db-queries'
 import { ConfiguracoesClient } from './ConfiguracoesClient'
 
 export default async function ConfiguracoesPage() {
@@ -23,6 +25,13 @@ export default async function ConfiguracoesPage() {
   const resendApiKey = (await getResendApiKey()) ?? ''
   const resendFromEmail = await getNewsletterFromEmail()
   const resendAutoSend = await getNewsletterAutoSend()
+  const chatAssistantConfig = await getChatAssistantConfig()
+  const adSenseConfig = await getAdSenseConfig()
+
+  // Facebook Pixel config — lida diretamente de getSettings()
+  const facebookPixelConfig: FacebookPixelConfig = settings.facebook_pixel
+
+  const seoSettings = await getSeoSettings()
 
   return (
     <ConfiguracoesClient
@@ -36,6 +45,10 @@ export default async function ConfiguracoesPage() {
       initialPexels={{ api_key: pexelsApiKey }}
       initialLgpd={lgpdSettings}
       initialResend={{ api_key: resendApiKey, from_email: resendFromEmail, auto_send: resendAutoSend }}
+      initialChatAssistant={chatAssistantConfig}
+      initialAdSense={adSenseConfig}
+      initialFacebookPixel={facebookPixelConfig}
+      initialSeo={seoSettings}
     />
   )
 }

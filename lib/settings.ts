@@ -102,6 +102,26 @@ export const DEFAULT_RESEND: ResendSettings = {
   auto_send: false,
 }
 
+// ────────────────────────────────────────────────
+// Facebook Pixel config
+// ────────────────────────────────────────────────
+
+export interface FacebookPixelConfig {
+  enabled: boolean
+  pixel_ids: string[]
+  track_pageview: boolean
+  track_viewcontent: boolean
+  track_lead: boolean
+}
+
+export const DEFAULT_FACEBOOK_PIXEL: FacebookPixelConfig = {
+  enabled: false,
+  pixel_ids: [],
+  track_pageview: true,
+  track_viewcontent: true,
+  track_lead: true,
+}
+
 export interface SiteSettings {
   template: string
   colors: ThemeColors
@@ -109,6 +129,7 @@ export interface SiteSettings {
   newsletter: NewsletterConfig
   resend: ResendSettings
   design_system: DesignSystem
+  facebook_pixel: FacebookPixelConfig
 }
 
 const COLOR_DEFAULTS: Record<string, ThemeColors> = {
@@ -228,12 +249,46 @@ export const getSettings = cache(async (): Promise<SiteSettings> => {
       auto_send: map['newsletter_auto_send'] === 'true',
     }
 
-    return { template, colors, company, newsletter, resend, design_system }
+    const storedFbPixel = map['facebook_pixel_config'] ? (JSON.parse(map['facebook_pixel_config']) as Partial<FacebookPixelConfig>) : {}
+    const facebook_pixel: FacebookPixelConfig = { ...DEFAULT_FACEBOOK_PIXEL, ...storedFbPixel }
+
+    return { template, colors, company, newsletter, resend, design_system, facebook_pixel }
   } catch {
-    return { template: 'default', colors: defaultColors('default'), company: DEFAULT_COMPANY, newsletter: DEFAULT_NEWSLETTER, resend: DEFAULT_RESEND, design_system: DEFAULT_DESIGN_SYSTEM }
+    return { template: 'default', colors: defaultColors('default'), company: DEFAULT_COMPANY, newsletter: DEFAULT_NEWSLETTER, resend: DEFAULT_RESEND, design_system: DEFAULT_DESIGN_SYSTEM, facebook_pixel: DEFAULT_FACEBOOK_PIXEL }
   }
 })
 
+
+// ────────────────────────────────────────────────
+// Chat assistant config
+// ────────────────────────────────────────────────
+
+export interface ChatAssistantConfig {
+  system_prompt: string
+  enabled_tools: boolean
+}
+
+export const DEFAULT_CHAT_ASSISTANT: ChatAssistantConfig = {
+  system_prompt: '',
+  enabled_tools: true,
+}
+
+export const getChatAssistantConfig = cache(async (): Promise<ChatAssistantConfig> => {
+  try {
+    const rows = await db.select().from(siteSettings)
+    const map = Object.fromEntries(rows.map((r) => [r.key, r.value ?? '']))
+    if (map['chat_assistant_config']) {
+      const parsed = JSON.parse(map['chat_assistant_config']) as Partial<ChatAssistantConfig>
+      return {
+        system_prompt: parsed.system_prompt ?? DEFAULT_CHAT_ASSISTANT.system_prompt,
+        enabled_tools: parsed.enabled_tools !== false,
+      }
+    }
+    return { ...DEFAULT_CHAT_ASSISTANT }
+  } catch {
+    return { ...DEFAULT_CHAT_ASSISTANT }
+  }
+})
 
 // ────────────────────────────────────────────────
 // LGPD settings

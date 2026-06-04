@@ -9,7 +9,6 @@ export async function POST(request: NextRequest) {
   const body = await request.json() as {
     themeIds?: number[]
     publishStatus?: 'draft' | 'published'
-    sendNewsletter?: boolean
     headline?: string
     initialLinks?: string[]
     themeTitle?: string
@@ -19,7 +18,6 @@ export async function POST(request: NextRequest) {
 
   const triggers: PublisherTriggers = {
     publishStatus: body.publishStatus ?? 'published',
-    sendNewsletter: body.sendNewsletter ?? false,
   }
 
   const stream = createPipelineStream({

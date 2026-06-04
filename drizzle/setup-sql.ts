@@ -18,9 +18,12 @@ CREATE TABLE IF NOT EXISTS "posts" (
   "status" text NOT NULL DEFAULT 'draft',
   "published_at" timestamp,
   "newsletter_sent_at" timestamp,
+  "author_name" text,
   "created_at" timestamp NOT NULL DEFAULT now(),
   "updated_at" timestamp NOT NULL DEFAULT now()
 );
+-- Migração idempotente: garante coluna em bancos existentes
+ALTER TABLE IF EXISTS "posts" ADD COLUMN IF NOT EXISTS "author_name" text;
 
 CREATE INDEX IF NOT EXISTS "posts_status_idx" ON "posts" ("status");
 CREATE INDEX IF NOT EXISTS "posts_published_at_idx" ON "posts" ("published_at");

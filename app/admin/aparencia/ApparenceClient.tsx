@@ -6,6 +6,7 @@ import type { SiteSettings, ThemeColors, DesignSystem } from '@/lib/settings'
 import { DEFAULT_DESIGN_SYSTEM } from '@/lib/settings-constants'
 import { ImageUpload } from '@/components/ui/ImageUpload'
 import { DesignSystemImporter } from './DesignSystemImporter'
+import { AdminFormActions } from '@/components/admin/AdminFormActions'
 
 interface Props {
   initial: SiteSettings
@@ -1316,16 +1317,6 @@ export function ApparenceClient({ initial }: Props) {
 
   return (
     <div>
-      <div className="flex items-center justify-end mb-8">
-        <button
-          onClick={handleSave}
-          disabled={saving}
-          className="bg-brand-primary text-white px-5 py-2 rounded-lg text-sm font-medium hover:bg-brand-primary-dark transition-colors disabled:opacity-50"
-        >
-          {saving ? 'Salvando...' : 'Salvar alterações'}
-        </button>
-      </div>
-
       {toast && (
         <div
           className={`mb-6 px-4 py-3 rounded-lg text-sm ${
@@ -1361,6 +1352,16 @@ export function ApparenceClient({ initial }: Props) {
 
         <div className="flex-1 min-w-0">{renderContent()}</div>
       </div>
+
+      <AdminFormActions>
+        <button
+          onClick={handleSave}
+          disabled={saving}
+          className="bg-brand-primary text-white px-5 py-2 rounded-lg text-sm font-medium hover:bg-brand-primary-dark transition-colors disabled:opacity-50"
+        >
+          {saving ? 'Salvando...' : 'Salvar alterações'}
+        </button>
+      </AdminFormActions>
     </div>
   )
 }

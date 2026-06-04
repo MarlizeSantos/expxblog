@@ -4,6 +4,7 @@ import { useState, useEffect } from 'react'
 import { usePageTitle } from '@/components/admin/AdminPageTitleContext'
 import { Button } from '@/components/ui/Button'
 import type { NewsletterConfig } from '@/lib/settings'
+import { AdminFormActions } from '@/components/admin/AdminFormActions'
 
 interface Subscriber {
   id: number
@@ -96,12 +97,6 @@ export function NewsletterClient({ initialConfig }: Props) {
 
   return (
     <div>
-      <div className="flex items-center justify-end mb-8">
-        <Button onClick={handleSave} loading={saving}>
-          Salvar configurações
-        </Button>
-      </div>
-
       {toast && (
         <div
           className={`mb-6 px-4 py-3 rounded-lg text-sm ${
@@ -171,6 +166,12 @@ export function NewsletterClient({ initialConfig }: Props) {
               />
             </div>
           </div>
+
+          <AdminFormActions>
+            <Button onClick={handleSave} loading={saving}>
+              Salvar configurações
+            </Button>
+          </AdminFormActions>
         </section>
 
         {/* Subscribers list */}

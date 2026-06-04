@@ -6,6 +6,8 @@ import { getSettings } from '@/lib/settings'
 import { AdminThemeProvider } from '@/components/admin/AdminThemeProvider'
 import { AdminTopBar } from '@/components/admin/AdminTopBar'
 import { AdminPageTitleProvider } from '@/components/admin/AdminPageTitleContext'
+import { ChatPanelProvider } from '@/components/admin/ChatPanelContext'
+import { ChatPanel } from '@/components/admin/ChatPanel'
 import { getDbPendingMigrations } from '@/lib/db-migrations'
 import { MIGRATION_ORDER } from '@/lib/migrations-embedded'
 import { DbUpdateModal } from '@/components/blog/DbUpdateModal'
@@ -82,9 +84,11 @@ export default async function AdminLayout({ children }: { children: React.ReactN
   }
 
   return (
+    <ChatPanelProvider>
     <AdminThemeProvider>
       <DbUpdateModal pending={pendingMigrations} />
       <OnboardingWizard />
+      <ChatPanel />
       <div className="min-h-screen flex admin-shell">
         {/* Sidebar */}
         <aside className="admin-sidebar w-[220px] flex flex-col shrink-0">
@@ -152,5 +156,6 @@ export default async function AdminLayout({ children }: { children: React.ReactN
         </AdminPageTitleProvider>
       </div>
     </AdminThemeProvider>
+    </ChatPanelProvider>
   )
 }

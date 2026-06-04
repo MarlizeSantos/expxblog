@@ -21,8 +21,12 @@ import { LifestyleFooter } from '@/components/layout/LifestyleFooter'
 import { BrutalistFooter } from '@/components/layout/BrutalistFooter'
 import { NewsletterSection } from '@/components/blog/NewsletterSection'
 import { getSettings } from '@/lib/settings'
+import { getSeoSettings } from '@/lib/seo'
 import { getAppUrl } from '@/lib/app-url'
 import type { Metadata } from 'next'
+import AdSenseScript from '@/components/blog/AdSenseScript'
+import { CookieConsentBanner } from '@/components/blog/CookieConsentBanner'
+import { FacebookPixel } from '@/components/blog/FacebookPixel'
 
 // ISR: páginas públicas servidas de cache e regeneradas no máximo a cada 5 min.
 // Sob carga, isso evita uma rodada de queries TCP ao Postgres por visita
@@ -32,17 +36,25 @@ import type { Metadata } from 'next'
 export const revalidate = 300
 
 export async function generateMetadata(): Promise<Metadata> {
-  const { company } = await getSettings()
+  const [{ company }, seo] = await Promise.all([getSettings(), getSeoSettings()])
   const blogName = company.blog_name || process.env.NEXT_PUBLIC_BLOG_NAME || 'Blog'
   const baseUrl = getAppUrl()
   return {
     title: { default: blogName, template: `%s | ${blogName}` },
-    alternates: { types: { 'application/rss+xml': `${baseUrl}/feed.xml` } },
+    alternates: {
+      types: {
+        'application/rss+xml': `${baseUrl}/feed.xml`,
+        'text/plain': `${baseUrl}/llms.txt`,
+      },
+    },
+    verification: seo.google_site_verification
+      ? { google: seo.google_site_verification }
+      : undefined,
   }
 }
 
 export default async function PublicLayout({ children }: { children: React.ReactNode }) {
-  const { template, company, newsletter } = await getSettings()
+  const { template, company, newsletter, facebook_pixel } = await getSettings()
   const blogName = company.blog_name || process.env.NEXT_PUBLIC_BLOG_NAME || 'Blog'
   const logoUrl = company.logo_url
 
@@ -56,6 +68,7 @@ export default async function PublicLayout({ children }: { children: React.React
 
   return (
     <div className="min-h-screen flex flex-col">
+      <AdSenseScript />
       {template === 'portal'
         ? <PortalHeader blogName={blogName} logoUrl={logoUrl} />
         : template === 'business'
@@ -85,7 +98,7 @@ export default async function PublicLayout({ children }: { children: React.React
       </main>
       {newsletter.enabled && (
         <div className={`w-full mx-auto px-4 ${mainWidth}`}>
-          <NewsletterSection title={newsletter.title} subtitle={newsletter.subtitle} />
+          <NewsletterSection title={newsletter.title} subtitle={newsletter.subtitle} facebookPixelConfig={facebook_pixel} />
         </div>
       )}
       {template === 'tech' ? (
@@ -180,6 +193,8 @@ export default async function PublicLayout({ children }: { children: React.React
           socialYoutube={company.social_youtube}
         />
       )}
+      <FacebookPixel config={facebook_pixel} />
+      <CookieConsentBanner />
     </div>
   )
 }

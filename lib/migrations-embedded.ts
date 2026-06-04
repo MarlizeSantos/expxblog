@@ -321,6 +321,8 @@ EXCEPTION
   WHEN others THEN
     RAISE NOTICE 'storage: erro ao provisionar bucket (non-fatal): %', SQLERRM;
 END $$;`,
+
+  '0007_chemical_blue_marvel': `ALTER TABLE "posts" ADD COLUMN IF NOT EXISTS "author_name" text;`,
 }
 
 // Ordem de aplicação (mesma do _journal.json)
@@ -332,4 +334,5 @@ export const MIGRATION_ORDER = [
   '0004_magenta_william_stryker',
   '0005_stormy_silver_centurion',
   '0006_provision_storage_bucket',
+  '0007_chemical_blue_marvel',
 ]

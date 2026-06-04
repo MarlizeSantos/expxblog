@@ -166,3 +166,122 @@ export async function getOnboardingStatus(): Promise<{
     return { hasApiKey: false, hasBriefing: false, themesCount: 0, hasFirstArticle: false }
   }
 }
+
+export async function getAdSenseConfig(): Promise<{ enabled: boolean; publisher_id: string }> {
+  try {
+    const rows = await db
+      .select({ key: siteSettings.key, value: siteSettings.value })
+      .from(siteSettings)
+      .where(
+        sql`${siteSettings.key} IN ('adsense_enabled', 'adsense_publisher_id')`
+      )
+    const map = Object.fromEntries(rows.map((r) => [r.key, r.value]))
+    return {
+      enabled: map['adsense_enabled'] === 'true',
+      publisher_id: map['adsense_publisher_id'] ?? '',
+    }
+  } catch {
+    return { enabled: false, publisher_id: '' }
+  }
+}
+
+export async function getSitemapEntries() {
+  try {
+    const [postRows, categoryRows, tagRows] = await Promise.all([
+      db
+        .select({ slug: posts.slug, updated_at: posts.updated_at })
+        .from(posts)
+        .where(eq(posts.status, 'published'))
+        .orderBy(desc(posts.updated_at)),
+      db.select({ slug: categories.slug }).from(categories).orderBy(asc(categories.name)),
+      db.select({ slug: tags.slug }).from(tags).orderBy(asc(tags.name)),
+    ])
+    return { posts: postRows, categories: categoryRows, tags: tagRows }
+  } catch {
+    return { posts: [], categories: [], tags: [] }
+  }
+}
+
+export async function getRelatedPosts(
+  postId: number,
+  categoryIds: number[],
+  tagIds: number[],
+  limit = 3
+) {
+  try {
+    const seen = new Set<number>([postId])
+    const result: { id: number; title: string; slug: string; excerpt: string; cover_image: string | null; published_at: Date | null }[] = []
+
+    // 1. Mesma categoria
+    if (categoryIds.length > 0 && result.length < limit) {
+      const catPostIds = await db
+        .select({ post_id: postCategories.post_id })
+        .from(postCategories)
+        .where(inArray(postCategories.category_id, categoryIds))
+      const ids = catPostIds.map((r) => r.post_id).filter((id) => !seen.has(id))
+      if (ids.length > 0) {
+        const rows = await db
+          .select({
+            id: posts.id,
+            title: posts.title,
+            slug: posts.slug,
+            excerpt: posts.excerpt,
+            cover_image: posts.cover_image,
+            published_at: posts.published_at,
+          })
+          .from(posts)
+          .where(and(eq(posts.status, 'published'), inArray(posts.id, ids)))
+          .orderBy(desc(posts.published_at))
+          .limit(limit - result.length)
+        rows.forEach((r) => { if (!seen.has(r.id)) { seen.add(r.id); result.push(r) } })
+      }
+    }
+
+    // 2. Mesma tag
+    if (tagIds.length > 0 && result.length < limit) {
+      const tagPostIds = await db
+        .select({ post_id: postTags.post_id })
+        .from(postTags)
+        .where(inArray(postTags.tag_id, tagIds))
+      const ids = tagPostIds.map((r) => r.post_id).filter((id) => !seen.has(id))
+      if (ids.length > 0) {
+        const rows = await db
+          .select({
+            id: posts.id,
+            title: posts.title,
+            slug: posts.slug,
+            excerpt: posts.excerpt,
+            cover_image: posts.cover_image,
+            published_at: posts.published_at,
+          })
+          .from(posts)
+          .where(and(eq(posts.status, 'published'), inArray(posts.id, ids)))
+          .orderBy(desc(posts.published_at))
+          .limit(limit - result.length)
+        rows.forEach((r) => { if (!seen.has(r.id)) { seen.add(r.id); result.push(r) } })
+      }
+    }
+
+    // 3. Mais recentes do blog (fallback)
+    if (result.length < limit) {
+      const rows = await db
+        .select({
+          id: posts.id,
+          title: posts.title,
+          slug: posts.slug,
+          excerpt: posts.excerpt,
+          cover_image: posts.cover_image,
+          published_at: posts.published_at,
+        })
+        .from(posts)
+        .where(eq(posts.status, 'published'))
+        .orderBy(desc(posts.published_at))
+        .limit(limit * 2)
+      rows.forEach((r) => { if (!seen.has(r.id)) { seen.add(r.id); result.push(r) } })
+    }
+
+    return result.slice(0, limit)
+  } catch {
+    return []
+  }
+}

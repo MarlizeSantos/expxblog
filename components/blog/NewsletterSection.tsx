@@ -1,15 +1,19 @@
 'use client'
 
 import { useState } from 'react'
+import { trackFacebookLead } from '@/components/blog/FacebookPixel'
+import type { FacebookPixelConfig } from '@/lib/settings'
 
 interface Props {
   title?: string
   subtitle?: string
+  facebookPixelConfig?: FacebookPixelConfig
 }
 
 export function NewsletterSection({
   title = 'Fique por dentro das novidades',
   subtitle = 'Receba os melhores artigos diretamente no seu e-mail.',
+  facebookPixelConfig,
 }: Props) {
   const [email, setEmail] = useState('')
   const [consent, setConsent] = useState(false)
@@ -34,6 +38,8 @@ export function NewsletterSection({
         return
       }
       setStatus('success')
+      // Dispara evento Lead no Facebook Pixel (se configurado e consentimento dado)
+      if (facebookPixelConfig) trackFacebookLead(facebookPixelConfig)
     } catch {
       setErrorMsg('Erro ao se inscrever. Tente novamente.')
       setStatus('error')

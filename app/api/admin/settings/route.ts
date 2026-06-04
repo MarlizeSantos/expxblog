@@ -115,6 +115,12 @@ const putSchema = z.object({
       mode: z.enum(['session', 'transaction', 'direct']).optional(),
     })
     .optional(),
+  chat_assistant: z
+    .object({
+      system_prompt: z.string().max(5000).optional(),
+      enabled_tools: z.boolean().optional(),
+    })
+    .optional(),
   lgpd: z
     .object({
       dpo_name: z.string().max(150).optional(),
@@ -126,6 +132,35 @@ const putSchema = z.object({
       retention_unsubscribed_days: z.number().int().positive().optional(),
       consent_text: z.string().max(500).optional(),
       consent_version: z.string().max(50).optional(),
+    })
+    .optional(),
+  adsense: z
+    .object({
+      enabled: z.boolean().optional(),
+      publisher_id: z
+        .string()
+        .regex(/^(ca-pub-\d{10,})?$/, 'Publisher ID inválido (use formato ca-pub-XXXXXXXXXX)')
+        .optional(),
+    })
+    .optional(),
+  facebook_pixel: z
+    .object({
+      enabled: z.boolean().optional(),
+      pixel_ids: z
+        .array(z.string().regex(/^\d+$/, 'Pixel ID deve conter apenas dígitos'))
+        .optional(),
+      track_pageview: z.boolean().optional(),
+      track_viewcontent: z.boolean().optional(),
+      track_lead: z.boolean().optional(),
+    })
+    .optional(),
+  seo: z
+    .object({
+      default_author: z.string().max(150).optional(),
+      default_og_image: z.string().max(500).optional(),
+      twitter_handle: z.string().max(50).optional(),
+      google_site_verification: z.string().max(200).optional(),
+      allow_ai_crawlers: z.boolean().optional(),
     })
     .optional(),
 })
@@ -171,7 +206,7 @@ export async function PUT(request: Request) {
       )
     }
 
-    const { template, colors, company, ai, newsletter, telegram, firecrawl, pexels, resend, database, lgpd } = parsed.data
+    const { template, colors, company, ai, newsletter, telegram, firecrawl, pexels, resend, database, lgpd, chat_assistant, adsense, facebook_pixel, seo } = parsed.data
 
     if (template !== undefined) {
       await upsertSetting('active_template', template)
@@ -287,6 +322,50 @@ export async function PUT(request: Request) {
       if (lgpdMerged.retention_unsubscribed_days !== undefined) await upsertSetting('lgpd_retention_unsubscribed_days', String(lgpdMerged.retention_unsubscribed_days))
       if (lgpdMerged.consent_text !== undefined) await upsertSetting('lgpd_consent_text', lgpdMerged.consent_text)
       if (lgpdMerged.consent_version !== undefined) await upsertSetting('lgpd_consent_version', lgpdMerged.consent_version)
+    }
+
+    if (chat_assistant !== undefined) {
+      const rows = await db
+        .select()
+        .from(siteSettings)
+        .where(eq(siteSettings.key, 'chat_assistant_config'))
+        .limit(1)
+      const existing = rows.length > 0 && rows[0].value
+        ? JSON.parse(rows[0].value)
+        : { system_prompt: '', enabled_tools: true }
+      const merged = { ...existing, ...chat_assistant }
+      await upsertSetting('chat_assistant_config', JSON.stringify(merged))
+    }
+
+    if (adsense !== undefined) {
+      if (adsense.enabled !== undefined) {
+        await upsertSetting('adsense_enabled', adsense.enabled ? 'true' : 'false')
+      }
+      if (adsense.publisher_id !== undefined) {
+        await upsertSetting('adsense_publisher_id', adsense.publisher_id)
+      }
+    }
+
+    if (facebook_pixel !== undefined) {
+      const rows = await db
+        .select()
+        .from(siteSettings)
+        .where(eq(siteSettings.key, 'facebook_pixel_config'))
+        .limit(1)
+      const existing =
+        rows.length > 0 && rows[0].value
+          ? JSON.parse(rows[0].value)
+          : { enabled: false, pixel_ids: [], track_pageview: true, track_viewcontent: true, track_lead: true }
+      const merged = { ...existing, ...facebook_pixel }
+      await upsertSetting('facebook_pixel_config', JSON.stringify(merged))
+    }
+
+    if (seo !== undefined) {
+      if (seo.default_author !== undefined) await upsertSetting('seo_default_author', seo.default_author)
+      if (seo.default_og_image !== undefined) await upsertSetting('seo_default_og_image', seo.default_og_image)
+      if (seo.twitter_handle !== undefined) await upsertSetting('seo_twitter_handle', seo.twitter_handle)
+      if (seo.google_site_verification !== undefined) await upsertSetting('seo_google_site_verification', seo.google_site_verification)
+      if (seo.allow_ai_crawlers !== undefined) await upsertSetting('seo_allow_ai_crawlers', seo.allow_ai_crawlers ? 'true' : 'false')
     }
 
     const current = await getSettings()

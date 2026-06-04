@@ -133,5 +133,4 @@ export interface PipelineEvent {
 
 export interface PublisherTriggers {
   publishStatus: 'draft' | 'published'
-  sendNewsletter?: boolean
 }

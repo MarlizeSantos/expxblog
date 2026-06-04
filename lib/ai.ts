@@ -15,17 +15,24 @@ export type AIFeature =
 const FREE_MODEL = 'openrouter/free'
 
 const DEFAULT_MODELS: Record<string, string> = {
+  // content_generation e image_generation NÃO são mais editáveis na UI de
+  // Configurações. O modelo usado é sempre o do agente equivalente na pipeline:
+  //   texto  → agente Copywriter  (getTextModel)
+  //   imagem → agente Designer    (getImageModel)
+  // Estes defaults atuam apenas como fallback de último recurso caso o agente
+  // não exista ou o banco esteja inacessível.
   content_generation: FREE_MODEL,
-  image_description: FREE_MODEL,
-  // image_generation é o único que NÃO usa o Free Router (que é só texto).
-  // Mantém um modelo de imagem por IA para quem optar por capa gerada por IA.
   image_generation: 'openai/gpt-5-image',
+  image_description: FREE_MODEL,
   briefing_generation: FREE_MODEL,
   prompt_generation: FREE_MODEL,
   theme_suggestion: FREE_MODEL,
   category_matching: FREE_MODEL,
   url_extraction: FREE_MODEL,
   briefing_extraction: FREE_MODEL,
+  // Assistente de Chat — gratuito por padrão (Free Router). O usuário pode
+  // trocar para um modelo com tool-calling mais robusto na config se quiser.
+  chat_assistant: FREE_MODEL,
 }
 
 export function getDefaultModels(): Record<string, string> {
@@ -54,9 +61,30 @@ export async function getAIApiKey(): Promise<string | null> {
   }
 }
 
+export interface ToolCall {
+  id: string
+  type: 'function'
+  function: {
+    name: string
+    arguments: string
+  }
+}
+
+export interface ToolDefinition {
+  type: 'function'
+  function: {
+    name: string
+    description: string
+    parameters: Record<string, unknown>
+  }
+}
+
 export interface OpenRouterMessage {
-  role: 'system' | 'user' | 'assistant'
-  content: string
+  role: 'system' | 'user' | 'assistant' | 'tool'
+  content: string | null
+  tool_calls?: ToolCall[]
+  tool_call_id?: string
+  name?: string
 }
 
 export interface OpenRouterOptions {
@@ -74,13 +102,21 @@ export interface OpenRouterOptions {
    * sem o campo (um único fallback, sem loop).
    */
   jsonMode?: boolean
+  /** Lista de tools disponíveis para function-calling */
+  tools?: ToolDefinition[]
+  /** Controla qual tool o modelo pode chamar ('auto' | 'none' | { type: 'function', function: { name } }) */
+  tool_choice?: 'auto' | 'none' | { type: 'function'; function: { name: string } }
 }
 
 export interface OpenRouterResponse {
   id: string
   choices: {
     index: number
-    message: { role: string; content: string }
+    message: {
+      role: string
+      content: string | null
+      tool_calls?: ToolCall[]
+    }
     finish_reason: string
   }[]
   usage: {
@@ -92,12 +128,22 @@ export interface OpenRouterResponse {
   citations?: string[]
 }
 
+export interface AiChatWithToolsResult {
+  content: string | null
+  tool_calls: ToolCall[]
+  usage: {
+    prompt_tokens: number
+    completion_tokens: number
+    total_tokens: number
+  }
+}
+
 function injectDateContext(messages: OpenRouterMessage[]): OpenRouterMessage[] {
   const now = new Date()
   const dateStr = now.toLocaleDateString('pt-BR', { year: 'numeric', month: 'long', day: 'numeric' })
   const prefix = `Data de hoje: ${dateStr}.\n\n`
   return messages.map((m) =>
-    m.role === 'system' ? { ...m, content: prefix + m.content } : m
+    m.role === 'system' ? { ...m, content: prefix + (m.content ?? '') } : m
   )
 }
 
@@ -154,6 +200,8 @@ export async function callOpenRouter(
       max_tokens: options.max_tokens ?? 1024,
       ...(options.top_p !== undefined ? { top_p: options.top_p } : {}),
       ...(withJsonMode ? { response_format: { type: 'json_object' } } : {}),
+      ...(options.tools && options.tools.length > 0 ? { tools: options.tools } : {}),
+      ...(options.tool_choice !== undefined ? { tool_choice: options.tool_choice } : {}),
     })
 
   const requestHeaders = {
@@ -269,6 +317,34 @@ export async function getAIModelFromDB(feature: AIFeature): Promise<string> {
   return getDefaultModel(feature)
 }
 
+/**
+ * Retorna o modelo de texto resolvendo o agente Copywriter da pipeline.
+ * Use este helper em qualquer ponto que antes usava getAIModelFromDB('content_generation').
+ * Usa import dinâmico para evitar ciclo: lib/ai.ts ← lib/agent-configs.ts ← lib/agents/types.ts.
+ */
+export async function getTextModel(): Promise<string> {
+  try {
+    const { getAgentConfig } = await import('@/lib/agent-configs')
+    const config = await getAgentConfig('copywriter')
+    if (config.model) return config.model
+  } catch {}
+  return getDefaultModel('content_generation')
+}
+
+/**
+ * Retorna o modelo de imagem resolvendo o agente Designer da pipeline.
+ * Use este helper em qualquer ponto que antes usava getAIModelFromDB('image_generation').
+ * Usa import dinâmico para evitar ciclo: lib/ai.ts ← lib/agent-configs.ts ← lib/agents/types.ts.
+ */
+export async function getImageModel(): Promise<string> {
+  try {
+    const { getAgentConfig } = await import('@/lib/agent-configs')
+    const config = await getAgentConfig('designer')
+    if (config.model) return config.model
+  } catch {}
+  return getDefaultModel('image_generation')
+}
+
 export interface OpenRouterModel {
   id: string
   name: string
@@ -317,7 +393,16 @@ export async function aiChat(
   messages: OpenRouterMessage[],
   options?: { temperature?: number; max_tokens?: number }
 ): Promise<string> {
-  const model = await getAIModelFromDB(feature)
+  // content_generation e image_generation delegam para o modelo do agente equivalente.
+  // Outros recursos continuam usando getAIModelFromDB() normalmente.
+  let model: string
+  if (feature === 'content_generation') {
+    model = await getTextModel()
+  } else if (feature === 'image_generation') {
+    model = await getImageModel()
+  } else {
+    model = await getAIModelFromDB(feature)
+  }
 
   const response = await callOpenRouter({
     model,
@@ -354,7 +439,7 @@ export async function callOpenRouterImage(
     throw new Error('Chave de API do OpenRouter não configurada. Configure em Configurações → IA.')
   }
 
-  const resolvedModel = model ?? (await getAIModelFromDB('image_generation'))
+  const resolvedModel = model ?? (await getImageModel())
   const modalities = isImageOnlyModel(resolvedModel) ? ['image'] : ['text', 'image']
 
   const maxAttempts = 3
@@ -508,4 +593,50 @@ export async function getPromptFromDB(key: string): Promise<string> {
   } catch {}
 
   return ''
+}
+
+/**
+ * Chama o modelo com suporte a function-calling (tool-calling).
+ * Retorna o conteúdo textual, os tool_calls solicitados e o uso de tokens.
+ * Usa a chave de API e o modelo configurados no banco para a feature fornecida.
+ */
+export async function aiChatWithTools(
+  feature: AIFeature,
+  messages: OpenRouterMessage[],
+  tools: ToolDefinition[],
+  options?: {
+    temperature?: number
+    max_tokens?: number
+    tool_choice?: OpenRouterOptions['tool_choice']
+    signal?: AbortSignal
+  }
+): Promise<AiChatWithToolsResult> {
+  const model = await getAIModelFromDB(feature)
+
+  // tool_choice só faz sentido (e é aceito por vários provedores) quando há tools.
+  // Sem tools (ex.: assistente com ferramentas desativadas), enviar tool_choice
+  // sem o campo `tools` faz alguns provedores retornarem HTTP 400.
+  const hasTools = tools.length > 0
+
+  const response = await callOpenRouter({
+    model,
+    messages,
+    tools,
+    ...(hasTools ? { tool_choice: options?.tool_choice ?? 'auto' } : {}),
+    temperature: options?.temperature,
+    max_tokens: options?.max_tokens ?? 2048,
+    feature,
+    signal: options?.signal,
+  })
+
+  const choice = response.choices[0]
+  return {
+    content: choice?.message?.content ?? null,
+    tool_calls: choice?.message?.tool_calls ?? [],
+    usage: {
+      prompt_tokens: response.usage?.prompt_tokens ?? 0,
+      completion_tokens: response.usage?.completion_tokens ?? 0,
+      total_tokens: response.usage?.total_tokens ?? 0,
+    },
+  }
 }

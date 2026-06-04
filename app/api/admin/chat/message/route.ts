@@ -1,7 +1,7 @@
 import { NextRequest } from 'next/server'
 import { db } from '@/drizzle/db'
 import { chatConversations, chatMessages, siteSettings } from '@/drizzle/schema'
-import { eq, asc } from 'drizzle-orm'
+import { eq, asc, desc } from 'drizzle-orm'
 import { aiChatWithTools, getAIModelFromDB, type OpenRouterMessage, type ToolCall } from '@/lib/ai'
 import { getToolDefinitions, executeTool } from '@/lib/chat-tools'
 import { narrateEvent } from '@/lib/chat-tools/pipeline-narrator'
@@ -28,8 +28,9 @@ async function getChatAssistantConfig(): Promise<ChatAssistantConfig> {
       .limit(1)
     if (rows.length > 0 && rows[0].value) {
       const parsed = extractJson<Partial<ChatAssistantConfig>>(rows[0].value)
+      const customPrompt = parsed?.system_prompt?.trim()
       return {
-        system_prompt: parsed?.system_prompt ?? defaultSystemPrompt(),
+        system_prompt: customPrompt ? customPrompt : defaultSystemPrompt(),
         enabled_tools: parsed?.enabled_tools !== false,
       }
     }
@@ -101,12 +102,25 @@ export async function POST(request: NextRequest) {
         })
 
         // 3. Carregar histórico
-        const history = await db
+        // Buscamos as mensagens mais RECENTES e depois reordenamos em ordem
+        // cronológica. Usar .limit(40) com ordem ASC truncaria as mensagens
+        // antigas mantendo um prefixo que pode começar numa mensagem `tool`
+        // órfã (sem o assistant tool_calls correspondente), o que faz o
+        // OpenRouter rejeitar a requisição com HTTP 400.
+        const historyDesc = await db
           .select()
           .from(chatMessages)
           .where(eq(chatMessages.conversation_id, conversationId))
-          .orderBy(asc(chatMessages.created_at))
+          .orderBy(desc(chatMessages.created_at))
           .limit(40)
+        let history = historyDesc.slice().reverse()
+
+        // Garante que a janela não comece numa mensagem `tool` órfã nem logo
+        // após um assistant com tool_calls cujas respostas foram cortadas:
+        // descarta mensagens `tool` iniciais sem o assistant tool_calls anterior.
+        while (history.length > 0 && history[0].role === 'tool') {
+          history = history.slice(1)
+        }
 
         // 4. Carregar config do assistente
         const config = await getChatAssistantConfig()
@@ -118,13 +132,28 @@ export async function POST(request: NextRequest) {
           content: config.system_prompt,
         }
 
+        // Mapa tool_call_id → nome da função, derivado dos tool_calls dos
+        // assistants no histórico. Necessário porque a coluna `tool_name`
+        // armazena o id do tool_call (para a ligação tool_call_id), não o
+        // nome da função; o campo `name` da mensagem `tool` exige o nome real.
+        const toolCallNameById = new Map<string, string>()
+        for (const m of history) {
+          if (m.role === 'assistant' && m.tool_calls) {
+            try {
+              const calls = JSON.parse(m.tool_calls) as ToolCall[]
+              for (const c of calls) toolCallNameById.set(c.id, c.function.name)
+            } catch {}
+          }
+        }
+
         const historyMsgs: OpenRouterMessage[] = history.map((m) => {
           if (m.role === 'tool') {
+            const callId = m.tool_name ?? ''
             return {
               role: 'tool' as const,
               content: m.content,
-              tool_call_id: m.tool_name ?? '',
-              name: m.tool_name ?? '',
+              tool_call_id: callId,
+              name: toolCallNameById.get(callId) ?? undefined,
             }
           }
           if (m.role === 'assistant' && m.tool_calls) {
@@ -361,7 +390,7 @@ async function runPipelineWithStream(
                 finalResult = {
                   success: true,
                   message: event.message,
-                  post_id: event.data?.postId,
+                  post_id: event.data?.post_id ?? event.data?.postId,
                   title: event.data?.title,
                 }
               } else if (event.type === 'pipeline_error') {

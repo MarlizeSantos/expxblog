@@ -35,6 +35,7 @@ export const posts = pgTable(
       .default('draft'),
     published_at: timestamp('published_at'),
     newsletter_sent_at: timestamp('newsletter_sent_at'),
+    author_name: text('author_name'),
     created_at: timestamp('created_at').notNull().default(sql`now()`),
     updated_at: timestamp('updated_at').notNull().default(sql`now()`),
   },
@@ -371,3 +372,44 @@ export const webhooks = pgTable(
 
 export type Webhook = typeof webhooks.$inferSelect
 export type NewWebhook = typeof webhooks.$inferInsert
+
+// ── Chat Assistant ────────────────────────────────────────────────────────────
+
+export const chatConversations = pgTable(
+  'chat_conversations',
+  {
+    id: serial('id').primaryKey(),
+    user_id: integer('user_id').notNull(),
+    title: text('title').notNull().default('Nova conversa'),
+    created_at: timestamp('created_at').notNull().default(sql`now()`),
+    updated_at: timestamp('updated_at').notNull().default(sql`now()`),
+  },
+  (t) => ({
+    userIdIdx: index('chat_conversations_user_id_idx').on(t.user_id),
+  })
+)
+
+export const chatMessages = pgTable(
+  'chat_messages',
+  {
+    id: serial('id').primaryKey(),
+    conversation_id: integer('conversation_id')
+      .notNull()
+      .references(() => chatConversations.id, { onDelete: 'cascade' }),
+    role: text('role', { enum: ['user', 'assistant', 'tool', 'system'] }).notNull(),
+    content: text('content').notNull().default(''),
+    tool_calls: text('tool_calls'), // JSON serializado
+    tool_name: text('tool_name'),
+    model: text('model'),
+    tokens_used: integer('tokens_used'),
+    created_at: timestamp('created_at').notNull().default(sql`now()`),
+  },
+  (t) => ({
+    conversationIdIdx: index('chat_messages_conversation_id_idx').on(t.conversation_id),
+  })
+)
+
+export type ChatConversation = typeof chatConversations.$inferSelect
+export type NewChatConversation = typeof chatConversations.$inferInsert
+export type ChatMessage = typeof chatMessages.$inferSelect
+export type NewChatMessage = typeof chatMessages.$inferInsert

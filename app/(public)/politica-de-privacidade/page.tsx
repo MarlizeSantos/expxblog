@@ -1,4 +1,5 @@
 import type { Metadata } from 'next'
+import { getAdSenseConfig } from '@/lib/db-queries'
 import { getSettings, getLgpdSettings } from '@/lib/settings'
 import { getAppUrl } from '@/lib/app-url'
 
@@ -17,6 +18,7 @@ export async function generateMetadata(): Promise<Metadata> {
 
 export default async function PoliticaDePrivacidadePage() {
   const { company } = await getSettings()
+  const adsenseConfig = await getAdSenseConfig()
   const lgpd = await getLgpdSettings()
   const blogName = company.blog_name || process.env.NEXT_PUBLIC_BLOG_NAME || 'Blog'
   const companyName = company.company_name || blogName
@@ -94,6 +96,41 @@ export default async function PoliticaDePrivacidadePage() {
             <li><strong>Base legal:</strong> legítimo interesse (Art. 7º, IX, LGPD).</li>
             <li><strong>Retenção:</strong> 6 meses.</li>
           </ul>
+
+          {adsenseConfig.enabled && (
+            <>
+              <h3 className="text-base font-semibold font-sans mt-4">2.5 Publicidade (Google AdSense)</h3>
+              <p>
+                Este blog exibe anúncios por meio do serviço <strong>Google AdSense</strong>. O Google e seus
+                parceiros podem usar cookies e tecnologias similares para personalizar os anúncios exibidos com base
+                em visitas anteriores a este site e a outros sites na internet.
+              </p>
+              <ul>
+                <li><strong>Finalidade:</strong> exibição de publicidade relevante para financiar o blog.</li>
+                <li><strong>Base legal:</strong> consentimento e legítimo interesse (Art. 7º, I e IX, LGPD).</li>
+                <li>
+                  <strong>Opt-out:</strong> você pode desativar a personalização de anúncios acessando{' '}
+                  <a
+                    href="https://www.google.com/settings/ads"
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="text-brand-primary underline"
+                  >
+                    Configurações de anúncios do Google
+                  </a>
+                  {' '}ou instalando o{' '}
+                  <a
+                    href="https://optout.aboutads.info/"
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="text-brand-primary underline"
+                  >
+                    complemento de opt-out do Google Analytics
+                  </a>.
+                </li>
+              </ul>
+            </>
+          )}
         </section>
 
         <section>
@@ -104,6 +141,17 @@ export default async function PoliticaDePrivacidadePage() {
               <strong>Supabase</strong> (banco de dados PostgreSQL) — infraestrutura hospedada nos EUA/EU.
               Transferência internacional amparada por cláusulas contratuais padrão (Art. 33, V, LGPD).
             </li>
+            {adsenseConfig.enabled && (
+              <li>
+                <strong>Google AdSense</strong> (plataforma de publicidade) — serviço do Google nos EUA/EU.
+                O Google pode usar cookies e dados de navegação para personalizar anúncios.
+                Transferência internacional amparada por cláusulas contratuais padrão (Art. 33, V, LGPD).
+                Política do Google:{' '}
+                <a href="https://policies.google.com/privacy" target="_blank" rel="noopener noreferrer" className="text-brand-primary underline">
+                  policies.google.com/privacy
+                </a>.
+              </li>
+            )}
             <li>
               <strong>Resend</strong> (envio de e-mails de newsletter) — processador de e-mail nos EUA.
               Transferência internacional amparada por cláusulas contratuais padrão (Art. 33, V, LGPD).
@@ -117,6 +165,12 @@ export default async function PoliticaDePrivacidadePage() {
             <li>
               <strong>Vercel</strong> (hospedagem da aplicação) — plataforma nos EUA/EU.
               Dados transitam pelos servidores de borda da Vercel para entrega das páginas.
+            </li>
+            <li>
+              <strong>Meta Platforms (Facebook Pixel)</strong> — tecnologia de rastreamento nos EUA/UE,
+              condicionada ao consentimento do visitante. Ativada apenas se o administrador do site configurar
+              o Facebook Pixel e o visitante aceitar o banner de cookies.
+              Transferência internacional amparada por cláusulas contratuais padrão (Art. 33, V, LGPD).
             </li>
           </ul>
           <p>Não vendemos, alugamos nem compartilhamos seus dados com terceiros para fins de marketing.</p>
@@ -155,10 +209,26 @@ export default async function PoliticaDePrivacidadePage() {
         <section>
           <h2 className="text-xl font-semibold font-sans">6. Cookies e tecnologias similares</h2>
           <p>
-            Utilizamos apenas cookies estritamente necessários para autenticação de usuários
+            Utilizamos cookies estritamente necessários para autenticação de usuários
             administradores (cookie <code>auth-token</code>, HttpOnly, duração 24h).
-            Não utilizamos cookies de rastreamento, publicidade ou analytics de terceiros.
           </p>
+          {adsenseConfig.enabled ? (
+            <p>
+              Além disso, o serviço Google AdSense utiliza cookies de terceiros para exibir anúncios
+              relevantes. O Google pode usar dados de navegação para personalizar anúncios. Para saber mais,
+              consulte a{' '}
+              <a
+                href="https://policies.google.com/technologies/ads"
+                target="_blank"
+                rel="noopener noreferrer"
+                className="text-brand-primary underline"
+              >
+                Política de privacidade de publicidade do Google
+              </a>.
+            </p>
+          ) : (
+            <p>Não utilizamos cookies de rastreamento, publicidade ou analytics de terceiros.</p>
+          )}
         </section>
 
         <section>

@@ -1,4 +1,10 @@
 import { notFound } from 'next/navigation'
+import { getSettings } from '@/lib/settings'
+import { PostViewTracker } from '@/components/blog/PostViewTracker'
+import { ArticleJsonLd } from '@/components/blog/ArticleJsonLd'
+import { RelatedPosts } from '@/components/blog/RelatedPosts'
+import { ShareButtons } from '@/components/blog/ShareButtons'
+import { getRelatedPosts } from '@/lib/db-queries'
 import type { Metadata } from 'next'
 import Link from 'next/link'
 import Image from 'next/image'
@@ -61,11 +67,42 @@ function formatDate(date: Date | null) {
 }
 
 export default async function PostPage({ params }: { params: { slug: string } }) {
-  const post = await getPost(params.slug)
+  const [post, settings] = await Promise.all([
+    getPost(params.slug),
+    getSettings(),
+  ])
   if (!post) notFound()
+
+  const { facebook_pixel, company } = settings
+  const blogName = company.blog_name || 'Blog'
+  const authorName = post.author_name || blogName
+  const canonicalUrl = `${getAppUrl()}/${post.slug}`
+
+  const categoryIds = post.categories?.map((c: { id: number }) => c.id) ?? []
+  const tagIds = post.tags?.map((t: { id: number }) => t.id) ?? []
+  const firstCategory = post.categories?.[0]?.name
+
+  const relatedPosts = await getRelatedPosts(post.id, categoryIds, tagIds, 3)
 
   return (
     <article className="w-full">
+      <ArticleJsonLd
+        title={post.title}
+        description={post.excerpt}
+        imageUrl={post.cover_image}
+        datePublished={post.published_at}
+        dateModified={post.updated_at}
+        authorName={authorName}
+        publisherName={blogName}
+        publisherLogoUrl={company.logo_url || undefined}
+        canonicalUrl={canonicalUrl}
+      />
+
+      <PostViewTracker
+        config={facebook_pixel}
+        contentName={post.title}
+        contentCategory={firstCategory}
+      />
       <Link href="/" className="text-brand-primary text-sm hover:underline mb-6 inline-block">
         ← Voltar ao Blog
       </Link>
@@ -97,6 +134,7 @@ export default async function PostPage({ params }: { params: { slug: string } })
 
         <div className="flex flex-wrap items-center gap-3 text-sm text-gray-500">
           {post.published_at && <time>{formatDate(post.published_at)}</time>}
+          <span>Por {authorName}</span>
           {post.tags?.map((tag: { id: number; name: string; slug: string }) => (
             <Link key={tag.id} href={`/tag/${tag.slug}`}>
               <Badge variant="tag">{tag.name}</Badge>
@@ -105,10 +143,16 @@ export default async function PostPage({ params }: { params: { slug: string } })
         </div>
       </header>
 
+      <ShareButtons url={canonicalUrl} title={post.title} />
+
       <div
-        className="prose max-w-none"
+        className="prose max-w-none mt-8"
         dangerouslySetInnerHTML={{ __html: post.content }}
       />
+
+      <ShareButtons url={canonicalUrl} title={post.title} />
+
+      <RelatedPosts posts={relatedPosts} />
     </article>
   )
 }

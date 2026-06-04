@@ -19,8 +19,18 @@ import { useState, useEffect, type ReactNode } from 'react'
 import { usePageTitle } from '@/components/admin/AdminPageTitleContext'
 import { Button } from '@/components/ui/Button'
 import { ModelCombobox } from '@/components/ui/ModelCombobox'
-import type { CompanyInfo, LgpdSettings } from '@/lib/settings'
+import type { CompanyInfo, LgpdSettings, FacebookPixelConfig } from '@/lib/settings'
+import type { SeoSettings } from '@/lib/seo'
+
+const DEFAULT_SEO: SeoSettings = {
+  default_author: '',
+  default_og_image: '',
+  twitter_handle: '',
+  google_site_verification: '',
+  allow_ai_crawlers: true,
+}
 import WebhooksSection from '@/components/admin/WebhooksSection'
+import { AdminFormActions } from '@/components/admin/AdminFormActions'
 
 interface AISettings {
   api_key: string
@@ -46,6 +56,16 @@ interface ResendSettings {
   auto_send: boolean
 }
 
+interface ChatAssistantConfig {
+  system_prompt: string
+  enabled_tools: boolean
+}
+
+interface AdSenseSettings {
+  enabled: boolean
+  publisher_id: string
+}
+
 interface Props {
   initial: CompanyInfo
   initialAI: AISettings
@@ -54,6 +74,10 @@ interface Props {
   initialPexels: PexelsSettings
   initialResend: ResendSettings
   initialLgpd: LgpdSettings
+  initialChatAssistant: ChatAssistantConfig
+  initialAdSense: AdSenseSettings
+  initialFacebookPixel: FacebookPixelConfig
+  initialSeo?: SeoSettings
 }
 
 type LgpdCheckItem = {
@@ -64,7 +88,7 @@ type LgpdCheckItem = {
 }
 
 type CompanyKey = keyof CompanyInfo
-type SectionId = 'blog' | 'empresa' | 'redes' | 'ia' | 'ai-logs' | 'firecrawl' | 'pexels' | 'resend' | 'api' | 'telegram' | 'vercel' | 'banco' | 'webhooks' | 'lgpd'
+type SectionId = 'blog' | 'empresa' | 'redes' | 'seo' | 'ia' | 'ai-logs' | 'chat' | 'firecrawl' | 'pexels' | 'resend' | 'api' | 'telegram' | 'vercel' | 'banco' | 'webhooks' | 'lgpd' | 'facebook-pixel' | 'adsense'
 
 interface RemoteModel {
   id: string
@@ -72,23 +96,36 @@ interface RemoteModel {
 }
 
 const FEATURE_LABELS: Record<string, string> = {
-  content_generation: 'Geração de Conteúdo',
   image_description: 'Descrição de Imagens',
-  image_generation: 'Geração de Imagens',
   briefing_generation: 'Geração de Briefing',
   prompt_generation: 'Geração de Prompts',
   theme_suggestion: 'Sugestão de Temas',
   category_matching: 'Correspondência de Categorias',
   url_extraction: 'Extração de URLs (Crawler)',
   briefing_extraction: 'Extração de dados do briefing',
+  chat_assistant: 'Assistente de Chat',
 }
+
+// Features que não aparecem na UI — o modelo é gerenciado pelo agente equivalente
+const AGENT_MANAGED_FEATURES = new Set(['content_generation', 'image_generation'])
 
 const SIDEBAR_ITEMS: { id: SectionId; label: string; icon: ReactNode }[] = [
   { id: 'blog', label: 'Blog', icon: <IconBlog /> },
   { id: 'empresa', label: 'Dados da Empresa', icon: <IconEmpresa /> },
   { id: 'redes', label: 'Redes Sociais', icon: <IconRedes /> },
+  { id: 'seo', label: 'SEO & IA', icon: (
+    <svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.75" strokeLinecap="round" strokeLinejoin="round">
+      <circle cx="11" cy="11" r="8" />
+      <line x1="21" y1="21" x2="16.65" y2="16.65" />
+    </svg>
+  ) },
   { id: 'ia', label: 'IA (OpenRouter)', icon: <IconIA /> },
   { id: 'ai-logs', label: 'Logs de IA', icon: <IconAILogs /> },
+  { id: 'chat', label: 'Assistente de Chat', icon: (
+    <svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.75" strokeLinecap="round" strokeLinejoin="round">
+      <path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z" />
+    </svg>
+  ) },
   { id: 'firecrawl', label: 'Firecrawl', icon: <IconFirecrawl /> },
   { id: 'pexels', label: 'Pexels', icon: <IconImagem /> },
   { id: 'resend', label: 'Resend (Email)', icon: <IconNewsletter /> },
@@ -101,9 +138,23 @@ const SIDEBAR_ITEMS: { id: SectionId; label: string; icon: ReactNode }[] = [
       <path d="M18 8h1a4 4 0 0 1 0 8h-1M2 8h16v9a4 4 0 0 1-4 4H6a4 4 0 0 1-4-4V8zM6 1v3M10 1v3M14 1v3" />
     </svg>
   ) },
+  { id: 'adsense', label: 'Google AdSense', icon: (
+    <svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.75" strokeLinecap="round" strokeLinejoin="round">
+      <rect x="2" y="3" width="20" height="14" rx="2" ry="2" />
+      <line x1="8" y1="21" x2="16" y2="21" />
+      <line x1="12" y1="17" x2="12" y2="21" />
+    </svg>
+  ) },
   { id: 'lgpd', label: 'LGPD', icon: (
     <svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.75" strokeLinecap="round" strokeLinejoin="round">
       <path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z" />
+    </svg>
+  ) },
+  { id: 'facebook-pixel', label: 'Facebook Pixel', icon: (
+    <svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.75" strokeLinecap="round" strokeLinejoin="round">
+      <rect x="2" y="2" width="20" height="20" rx="5" ry="5" />
+      <path d="M16 11.37A4 4 0 1 1 12.63 8 4 4 0 0 1 16 11.37z" />
+      <line x1="17.5" y1="6.5" x2="17.51" y2="6.5" />
     </svg>
   ) },
 ]
@@ -134,13 +185,21 @@ const SECTIONS: Record<string, { fields: { key: CompanyKey; label: string; type?
   },
 }
 
-export function ConfiguracoesClient({ initial, initialAI, initialTelegram, initialFirecrawl, initialPexels, initialResend, initialLgpd }: Props) {
+export function ConfiguracoesClient({ initial, initialAI, initialTelegram, initialFirecrawl, initialPexels, initialResend, initialLgpd, initialChatAssistant, initialAdSense, initialFacebookPixel, initialSeo }: Props) {
   const [company, setCompany] = useState<CompanyInfo>(initial)
   const [ai, setAI] = useState<AISettings>(initialAI)
   const [telegram, setTelegram] = useState<TelegramSettings>(initialTelegram)
   const [firecrawl, setFirecrawl] = useState<FirecrawlSettings>(initialFirecrawl)
   const [pexels, setPexels] = useState<PexelsSettings>(initialPexels)
   const [resend, setResend] = useState<ResendSettings>(initialResend)
+  const [chatAssistant, setChatAssistant] = useState<ChatAssistantConfig>(initialChatAssistant)
+  const [adsense, setAdSense] = useState<AdSenseSettings>(initialAdSense)
+  const [adsenseSaving, setAdSenseSaving] = useState(false)
+  const [facebookPixel, setFacebookPixel] = useState<FacebookPixelConfig>(initialFacebookPixel)
+  const [facebookPixelSaving, setFacebookPixelSaving] = useState(false)
+  const [newPixelId, setNewPixelId] = useState('')
+  const [seo, setSeo] = useState<SeoSettings>(initialSeo ?? DEFAULT_SEO)
+  const [seoSaving, setSeoSaving] = useState(false)
   const [sendingTest, setSendingTest] = useState(false)
   const [lgpd, setLgpd] = useState<LgpdSettings>(initialLgpd)
   const [lgpdSaving, setLgpdSaving] = useState(false)
@@ -325,6 +384,33 @@ export function ConfiguracoesClient({ initial, initialAI, initialTelegram, initi
 
   function handleLgpdChange<K extends keyof LgpdSettings>(key: K, value: LgpdSettings[K]) {
     setLgpd((prev) => ({ ...prev, [key]: value }))
+  }
+
+  function handleSeoChange<K extends keyof SeoSettings>(key: K, value: SeoSettings[K]) {
+    setSeo((prev) => ({ ...prev, [key]: value }))
+  }
+
+  async function handleSeoSave() {
+    setSeoSaving(true)
+    setToast(null)
+    try {
+      const res = await fetch('/api/admin/settings', {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ seo }),
+      })
+      if (!res.ok) {
+        const data = await res.json()
+        throw new Error(data.error ?? 'Falha ao salvar')
+      }
+      setToast({ type: 'success', msg: 'Configurações de SEO salvas com sucesso!' })
+      setTimeout(() => setToast(null), 3000)
+    } catch (err) {
+      setToast({ type: 'error', msg: err instanceof Error ? err.message : 'Erro ao salvar configurações de SEO.' })
+      setTimeout(() => setToast(null), 3000)
+    } finally {
+      setSeoSaving(false)
+    }
   }
 
   async function handleLgpdSave() {
@@ -565,7 +651,7 @@ export function ConfiguracoesClient({ initial, initialAI, initialTelegram, initi
       const res = await fetch('/api/admin/settings', {
         method: 'PUT',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ company, ai, telegram, firecrawl, pexels, resend }),
+        body: JSON.stringify({ company, ai, telegram, firecrawl, pexels, resend, chat_assistant: chatAssistant }),
       })
       if (!res.ok) {
         const data = await res.json()
@@ -618,6 +704,116 @@ export function ConfiguracoesClient({ initial, initialAI, initialTelegram, initi
           </section>
         )
       }
+      case 'seo':
+        return (
+          <section className="bg-white rounded-xl border border-gray-200 p-6">
+            <h2 className="text-lg font-semibold text-neutral-900 mb-1">SEO &amp; Descoberta por IA</h2>
+            <p className="text-sm text-gray-500 mb-5">
+              Configure metadados Open Graph, Twitter Cards, verificação do Google Search Console e controle
+              de acesso de crawlers de IA (GEO/AEO) ao conteúdo do blog.
+            </p>
+            <div className="space-y-5">
+              {/* Autor padrão */}
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1">Autor padrão</label>
+                <input
+                  type="text"
+                  value={seo.default_author}
+                  onChange={(e) => handleSeoChange('default_author', e.target.value)}
+                  placeholder="Ex: Equipe do Blog"
+                  className="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-brand-primary"
+                />
+                <p className="text-xs text-gray-400 mt-1">
+                  Usado em <code className="font-mono">article:author</code> e JSON-LD quando o artigo não tem autor próprio.
+                </p>
+              </div>
+
+              {/* Imagem OG padrão */}
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1">Imagem Open Graph padrão</label>
+                <input
+                  type="url"
+                  value={seo.default_og_image}
+                  onChange={(e) => handleSeoChange('default_og_image', e.target.value)}
+                  placeholder="https://seudominio.com.br/og-image.jpg"
+                  className="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-brand-primary"
+                />
+                <p className="text-xs text-gray-400 mt-1">
+                  Imagem exibida ao compartilhar páginas sem capa própria no Facebook, WhatsApp, LinkedIn etc.
+                  Recomendado: 1200&times;630 px.
+                </p>
+              </div>
+
+              {/* Twitter handle */}
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1">Handle do Twitter/X</label>
+                <input
+                  type="text"
+                  value={seo.twitter_handle}
+                  onChange={(e) => handleSeoChange('twitter_handle', e.target.value)}
+                  placeholder="@minhaempresa"
+                  className="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-brand-primary font-mono"
+                />
+                <p className="text-xs text-gray-400 mt-1">
+                  Usado na meta tag <code className="font-mono">twitter:site</code> para atribuição nos Twitter Cards.
+                </p>
+              </div>
+
+              {/* Google site verification */}
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1">Token do Google Search Console</label>
+                <input
+                  type="text"
+                  value={seo.google_site_verification}
+                  onChange={(e) => handleSeoChange('google_site_verification', e.target.value)}
+                  placeholder="Ex: abc123def456..."
+                  className="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-brand-primary font-mono"
+                />
+                <p className="text-xs text-gray-400 mt-1">
+                  Token da meta tag <code className="font-mono">google-site-verification</code>. Obtido no Google
+                  Search Console ao adicionar a propriedade via &ldquo;Tag HTML&rdquo;.
+                </p>
+              </div>
+
+              {/* Toggle crawlers IA */}
+              <div className="flex items-center justify-between p-4 bg-gray-50 rounded-lg">
+                <div>
+                  <p className="text-sm font-medium text-gray-800">Permitir crawlers de IA</p>
+                  <p className="text-xs text-gray-500 mt-0.5">
+                    Controla se GPTBot, ClaudeBot, PerplexityBot e outros crawlers de IA podem acessar o conteúdo
+                    via <code className="font-mono">robots.txt</code>. Desativar bloqueia indexação em ferramentas de IA generativa.
+                  </p>
+                </div>
+                <button
+                  type="button"
+                  onClick={() => handleSeoChange('allow_ai_crawlers', !seo.allow_ai_crawlers)}
+                  className={`relative inline-flex h-6 w-11 items-center rounded-full transition-colors shrink-0 ${
+                    seo.allow_ai_crawlers ? 'bg-brand-primary' : 'bg-gray-300'
+                  }`}
+                  aria-pressed={seo.allow_ai_crawlers}
+                >
+                  <span
+                    className={`inline-block h-4 w-4 transform rounded-full bg-white shadow transition-transform ${
+                      seo.allow_ai_crawlers ? 'translate-x-6' : 'translate-x-1'
+                    }`}
+                  />
+                </button>
+              </div>
+            </div>
+
+            <div className="mt-6 flex justify-end">
+              <button
+                type="button"
+                onClick={() => void handleSeoSave()}
+                disabled={seoSaving}
+                className="inline-flex items-center gap-2 px-4 py-2 text-sm font-medium rounded-lg bg-brand-primary text-white hover:bg-brand-primary/90 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
+              >
+                {seoSaving ? 'Salvando...' : 'Salvar configurações SEO'}
+              </button>
+            </div>
+          </section>
+        )
+
       case 'ia':
         return (
           <section className="bg-white rounded-xl border border-gray-200 p-6">
@@ -642,8 +838,16 @@ export function ConfiguracoesClient({ initial, initialAI, initialTelegram, initi
               </div>
               <div className="border-t border-gray-100 pt-4 mt-4">
                 <h3 className="text-sm font-semibold text-gray-800 mb-3">Modelos por Recurso</h3>
+                <div className="mb-4 p-3 bg-blue-50 border border-blue-100 rounded-lg">
+                  <p className="text-xs text-blue-800">
+                    Os modelos de <strong>Geração de Conteúdo</strong> e <strong>Geração de Imagens</strong> são
+                    definidos pelos agentes da pipeline em{' '}
+                    <a href="/admin/artigos" className="underline font-medium">Artigos</a>
+                    {' '}(agentes Copywriter e Designer), não aqui.
+                  </p>
+                </div>
                 <div className="space-y-4">
-                  {Object.entries(ai.models).map(([feature, model]) => (
+                  {Object.entries(ai.models).filter(([feature]) => !AGENT_MANAGED_FEATURES.has(feature)).map(([feature, model]) => (
                     <div key={feature}>
                       <label className="block text-sm font-medium text-gray-700 mb-1">
                         {FEATURE_LABELS[feature] ?? feature}
@@ -657,6 +861,57 @@ export function ConfiguracoesClient({ initial, initialAI, initialTelegram, initi
                     </div>
                   ))}
                 </div>
+              </div>
+            </div>
+          </section>
+        )
+      case 'chat':
+        return (
+          <section className="bg-white rounded-xl border border-gray-200 p-6">
+            <h2 className="text-lg font-semibold text-neutral-900 mb-1">Assistente de Chat</h2>
+            <p className="text-sm text-gray-500 mb-5">
+              Configure o assistente de chat do painel admin (ícone &quot;Assistente&quot; na barra superior).
+              Ele responde perguntas e executa ações reais no sistema via ferramentas (criar artigos, listar
+              posts, consultar analytics, etc.). O modelo usado é definido em{' '}
+              <strong>IA (OpenRouter)</strong> &rarr; recurso <strong>Assistente de Chat</strong>.
+            </p>
+            <div className="space-y-4">
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1">Instruções do assistente (system prompt)</label>
+                <textarea
+                  value={chatAssistant.system_prompt}
+                  onChange={(e) => setChatAssistant((prev) => ({ ...prev, system_prompt: e.target.value }))}
+                  rows={10}
+                  placeholder="Deixe em branco para usar o prompt padrão do sistema..."
+                  className="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-brand-primary font-mono leading-relaxed"
+                />
+                <p className="text-xs text-gray-400 mt-1">
+                  Define a personalidade e as diretrizes do assistente. Se vazio, um prompt padrão é usado.
+                  Máximo de 5000 caracteres.
+                </p>
+              </div>
+              <div className="flex items-center justify-between p-4 bg-gray-50 rounded-lg">
+                <div>
+                  <p className="text-sm font-medium text-gray-800">Habilitar ferramentas (tools)</p>
+                  <p className="text-xs text-gray-500 mt-0.5">
+                    Permite que o assistente execute ações reais (criar/editar/publicar artigos, disparar a
+                    pipeline, consultar dados). Se desativado, ele apenas conversa, sem agir no sistema.
+                  </p>
+                </div>
+                <button
+                  type="button"
+                  onClick={() => setChatAssistant((prev) => ({ ...prev, enabled_tools: !prev.enabled_tools }))}
+                  className={`relative inline-flex h-6 w-11 items-center rounded-full transition-colors shrink-0 ${
+                    chatAssistant.enabled_tools ? 'bg-brand-primary' : 'bg-gray-300'
+                  }`}
+                  aria-pressed={chatAssistant.enabled_tools}
+                >
+                  <span
+                    className={`inline-block h-4 w-4 transform rounded-full bg-white shadow transition-transform ${
+                      chatAssistant.enabled_tools ? 'translate-x-6' : 'translate-x-1'
+                    }`}
+                  />
+                </button>
               </div>
             </div>
           </section>
@@ -1150,15 +1405,6 @@ export function ConfiguracoesClient({ initial, initialAI, initialTelegram, initi
                 </select>
               </div>
 
-              <button
-                type="button"
-                onClick={handleVercelSave}
-                disabled={vercelSaving}
-                className="inline-flex items-center gap-2 px-4 py-2 text-sm font-medium rounded-lg bg-brand-primary text-white hover:bg-brand-primary/90 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
-              >
-                {vercelSaving ? 'Salvando...' : 'Salvar'}
-              </button>
-
               {vercelDeploy !== null && (
                 <div className="border border-amber-200 bg-amber-50 rounded-xl p-4 text-sm text-amber-900">
                   <p className="font-semibold mb-2">Ação necessária para aplicar a mudança</p>
@@ -1196,6 +1442,17 @@ export function ConfiguracoesClient({ initial, initialAI, initialTelegram, initi
                 </ul>
               </div>
             </div>
+
+            <AdminFormActions>
+              <button
+                type="button"
+                onClick={handleVercelSave}
+                disabled={vercelSaving}
+                className="inline-flex items-center gap-2 px-4 py-2 text-sm font-medium rounded-lg bg-brand-primary text-white hover:bg-brand-primary/90 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
+              >
+                {vercelSaving ? 'Salvando...' : 'Salvar'}
+              </button>
+            </AdminFormActions>
           </section>
         )
       case 'banco':
@@ -1488,6 +1745,121 @@ export function ConfiguracoesClient({ initial, initialAI, initialTelegram, initi
           </section>
         )
 
+      case 'adsense':
+        return (
+          <section className="bg-white rounded-xl border border-gray-200 p-6">
+            <h2 className="text-lg font-semibold text-neutral-900 mb-1">Google AdSense</h2>
+            <p className="text-sm text-gray-500 mb-5">
+              Habilite o Google AdSense (Auto Ads) para monetizar o blog com anúncios automáticos.
+              O Google decide o posicionamento dos anúncios automaticamente. Obtenha seu Publisher ID em{' '}
+              <a
+                href="https://www.google.com/adsense"
+                target="_blank"
+                rel="noopener noreferrer"
+                className="text-brand-primary underline"
+              >
+                google.com/adsense
+              </a>
+              .
+            </p>
+            <div className="space-y-5">
+              {/* Toggle ativar/desativar */}
+              <div className="flex items-center justify-between p-4 bg-gray-50 rounded-lg">
+                <div>
+                  <p className="text-sm font-medium text-gray-800">Ativar anúncios</p>
+                  <p className="text-xs text-gray-500 mt-0.5">
+                    Injeta o script do AdSense Auto Ads em todas as páginas públicas do blog.
+                  </p>
+                </div>
+                <button
+                  type="button"
+                  onClick={() => setAdSense((prev) => ({ ...prev, enabled: !prev.enabled }))}
+                  className={`relative inline-flex h-6 w-11 items-center rounded-full transition-colors ${
+                    adsense.enabled ? 'bg-brand-primary' : 'bg-gray-300'
+                  }`}
+                >
+                  <span
+                    className={`inline-block h-4 w-4 transform rounded-full bg-white shadow transition-transform ${
+                      adsense.enabled ? 'translate-x-6' : 'translate-x-1'
+                    }`}
+                  />
+                </button>
+              </div>
+
+              {/* Publisher ID */}
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1">
+                  Publisher ID
+                </label>
+                <input
+                  type="text"
+                  value={adsense.publisher_id}
+                  onChange={(e) => setAdSense((prev) => ({ ...prev, publisher_id: e.target.value }))}
+                  placeholder="ca-pub-1234567890"
+                  className="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-brand-primary font-mono"
+                  disabled={!adsense.enabled}
+                />
+                <p className="text-xs text-gray-400 mt-1">
+                  Formato: <code className="font-mono">ca-pub-XXXXXXXXXX</code>. Encontrado no dashboard do AdSense em{' '}
+                  <a
+                    href="https://www.google.com/adsense"
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="text-brand-primary underline"
+                  >
+                    google.com/adsense
+                  </a>
+                  .
+                </p>
+              </div>
+
+              {/* Info sobre ads.txt */}
+              <div className="p-3 bg-blue-50 border border-blue-100 rounded-lg">
+                <p className="text-xs text-blue-800">
+                  <strong>ads.txt</strong>: após salvar, o arquivo <code className="bg-blue-100 px-1 rounded font-mono">/ads.txt</code> é
+                  gerado automaticamente com sua conta de publicador — obrigatório pelo Google para validação.
+                </p>
+              </div>
+            </div>
+
+            <div className="mt-6 flex justify-end">
+              <button
+                type="button"
+                onClick={async () => {
+                  setAdSenseSaving(true)
+                  setToast(null)
+                  try {
+                    // Validar publisher_id se habilitado
+                    if (adsense.enabled && adsense.publisher_id && !/^ca-pub-\d{10,}$/.test(adsense.publisher_id)) {
+                      throw new Error('Publisher ID inválido (use formato ca-pub-XXXXXXXXXX)')
+                    }
+                    const res = await fetch('/api/admin/settings', {
+                      method: 'PUT',
+                      headers: { 'Content-Type': 'application/json' },
+                      body: JSON.stringify({ adsense }),
+                    })
+                    if (!res.ok) {
+                      const data = await res.json()
+                      throw new Error(data.error ?? 'Falha ao salvar')
+                    }
+                    setToast({ type: 'success', msg: 'Configurações do AdSense salvas com sucesso!' })
+                    setTimeout(() => setToast(null), 3000)
+                  } catch (err) {
+                    setToast({ type: 'error', msg: err instanceof Error ? err.message : 'Erro ao salvar configurações do AdSense.' })
+                    setTimeout(() => setToast(null), 3000)
+                  } finally {
+                    setAdSenseSaving(false)
+                  }
+                }}
+                disabled={adsenseSaving}
+                className="inline-flex items-center gap-2 px-4 py-2 text-sm font-medium rounded-lg bg-brand-primary text-white hover:bg-brand-primary/90 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
+              >
+                {adsenseSaving ? 'Salvando...' : 'Salvar configurações AdSense'}
+              </button>
+            </div>
+          </section>
+        )
+
       case 'lgpd':
         return (
           <section className="space-y-6">
@@ -1675,6 +2047,185 @@ export function ConfiguracoesClient({ initial, initialAI, initialTelegram, initi
             </div>
           </section>
         )
+
+      case 'facebook-pixel':
+        return (
+          <section className="bg-white rounded-xl border border-gray-200 p-6">
+            <h2 className="text-lg font-semibold text-neutral-900 mb-1">Facebook Pixel (Meta)</h2>
+            <p className="text-sm text-gray-500 mb-5">
+              Configure o rastreamento via Facebook Pixel para medir conversões e criar audiências personalizadas no
+              Gerenciador de Anúncios da Meta. O Pixel <strong>só dispara após o visitante aceitar</strong> o banner de
+              consentimento de cookies (LGPD).
+            </p>
+
+            <div className="space-y-5">
+              {/* Toggle ativar */}
+              <div className="flex items-center justify-between p-4 bg-gray-50 rounded-lg">
+                <div>
+                  <p className="text-sm font-medium text-gray-800">Ativar Facebook Pixel</p>
+                  <p className="text-xs text-gray-500 mt-0.5">
+                    Injeta o script do Pixel em todas as páginas públicas, condicionado ao consentimento do visitante.
+                  </p>
+                </div>
+                <button
+                  type="button"
+                  onClick={() => setFacebookPixel((prev) => ({ ...prev, enabled: !prev.enabled }))}
+                  className={`relative inline-flex h-6 w-11 items-center rounded-full transition-colors ${
+                    facebookPixel.enabled ? 'bg-brand-primary' : 'bg-gray-300'
+                  }`}
+                >
+                  <span
+                    className={`inline-block h-4 w-4 transform rounded-full bg-white shadow transition-transform ${
+                      facebookPixel.enabled ? 'translate-x-6' : 'translate-x-1'
+                    }`}
+                  />
+                </button>
+              </div>
+
+              {/* Pixel IDs */}
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1">
+                  Pixel IDs
+                </label>
+                <p className="text-xs text-gray-400 mb-2">
+                  Adicione um ou mais IDs. Todos receberão os mesmos eventos simultaneamente.
+                  Encontre seu ID em <a href="https://business.facebook.com/events_manager" target="_blank" rel="noopener noreferrer" className="text-brand-primary underline">Events Manager</a>.
+                </p>
+
+                {/* Lista de IDs existentes */}
+                {facebookPixel.pixel_ids.length > 0 && (
+                  <ul className="space-y-2 mb-3">
+                    {facebookPixel.pixel_ids.map((pid) => (
+                      <li key={pid} className="flex items-center justify-between gap-2 px-3 py-2 bg-gray-50 rounded-lg border border-gray-200">
+                        <span className="font-mono text-sm text-neutral-900">{pid}</span>
+                        <button
+                          type="button"
+                          onClick={() => setFacebookPixel((prev) => ({ ...prev, pixel_ids: prev.pixel_ids.filter((id) => id !== pid) }))}
+                          className="text-gray-400 hover:text-red-500 transition-colors"
+                          aria-label={`Remover pixel ${pid}`}
+                        >
+                          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.75" strokeLinecap="round" strokeLinejoin="round">
+                            <line x1="18" y1="6" x2="6" y2="18" />
+                            <line x1="6" y1="6" x2="18" y2="18" />
+                          </svg>
+                        </button>
+                      </li>
+                    ))}
+                  </ul>
+                )}
+
+                {/* Adicionar novo ID */}
+                <div className="flex gap-2">
+                  <input
+                    type="text"
+                    value={newPixelId}
+                    onChange={(e) => setNewPixelId(e.target.value.replace(/\D/g, ''))}
+                    placeholder="Ex: 1234567890123456"
+                    className="flex-1 border border-gray-300 rounded-lg px-3 py-2 text-sm font-mono focus:outline-none focus:ring-2 focus:ring-brand-primary"
+                    onKeyDown={(e) => {
+                      if (e.key === 'Enter') {
+                        e.preventDefault()
+                        const id = newPixelId.trim()
+                        if (id && !facebookPixel.pixel_ids.includes(id)) {
+                          setFacebookPixel((prev) => ({ ...prev, pixel_ids: [...prev.pixel_ids, id] }))
+                          setNewPixelId('')
+                        }
+                      }
+                    }}
+                  />
+                  <button
+                    type="button"
+                    onClick={() => {
+                      const id = newPixelId.trim()
+                      if (id && !facebookPixel.pixel_ids.includes(id)) {
+                        setFacebookPixel((prev) => ({ ...prev, pixel_ids: [...prev.pixel_ids, id] }))
+                        setNewPixelId('')
+                      }
+                    }}
+                    disabled={!newPixelId.trim()}
+                    className="px-3 py-2 text-sm font-medium rounded-lg border border-gray-300 text-gray-700 hover:bg-gray-50 disabled:opacity-40 disabled:cursor-not-allowed transition-colors"
+                  >
+                    Adicionar
+                  </button>
+                </div>
+                <p className="text-xs text-gray-400 mt-1">Digite apenas dígitos e pressione Enter ou clique em Adicionar.</p>
+              </div>
+
+              {/* Toggles de eventos */}
+              <div className="border-t border-gray-100 pt-4">
+                <h3 className="text-sm font-semibold text-gray-800 mb-3">Eventos rastreados</h3>
+                <div className="space-y-3">
+                  {([
+                    { key: 'track_pageview', label: 'PageView', desc: 'Dispara a cada troca de página (automático).' },
+                    { key: 'track_viewcontent', label: 'ViewContent', desc: 'Dispara ao abrir um artigo com título e categoria.' },
+                    { key: 'track_lead', label: 'Lead', desc: 'Dispara ao confirmar inscrição na newsletter.' },
+                  ] as const).map(({ key, label, desc }) => (
+                    <div key={key} className="flex items-center justify-between p-3 bg-gray-50 rounded-lg">
+                      <div>
+                        <p className="text-sm font-medium text-gray-800">{label}</p>
+                        <p className="text-xs text-gray-500 mt-0.5">{desc}</p>
+                      </div>
+                      <button
+                        type="button"
+                        onClick={() => setFacebookPixel((prev) => ({ ...prev, [key]: !prev[key] }))}
+                        className={`relative inline-flex h-6 w-11 items-center rounded-full transition-colors ${
+                          facebookPixel[key] ? 'bg-brand-primary' : 'bg-gray-300'
+                        }`}
+                      >
+                        <span
+                          className={`inline-block h-4 w-4 transform rounded-full bg-white shadow transition-transform ${
+                            facebookPixel[key] ? 'translate-x-6' : 'translate-x-1'
+                          }`}
+                        />
+                      </button>
+                    </div>
+                  ))}
+                </div>
+              </div>
+
+              {/* Nota LGPD */}
+              <div className="p-3 bg-blue-50 border border-blue-100 rounded-lg">
+                <p className="text-xs text-blue-800">
+                  <strong>LGPD:</strong> o Pixel só é inicializado e dispara eventos após o visitante clicar em{' '}
+                  <em>Aceitar</em> no banner de cookies. Visitantes que recusarem ou ainda não responderam{' '}
+                  <strong>não</strong> são rastreados.
+                </p>
+              </div>
+            </div>
+
+            <div className="mt-6 flex justify-end">
+              <button
+                type="button"
+                onClick={async () => {
+                  setFacebookPixelSaving(true)
+                  setToast(null)
+                  try {
+                    const res = await fetch('/api/admin/settings', {
+                      method: 'PUT',
+                      headers: { 'Content-Type': 'application/json' },
+                      body: JSON.stringify({ facebook_pixel: facebookPixel }),
+                    })
+                    if (!res.ok) {
+                      const data = await res.json()
+                      throw new Error(data.error ?? 'Falha ao salvar')
+                    }
+                    setToast({ type: 'success', msg: 'Configurações do Facebook Pixel salvas com sucesso!' })
+                    setTimeout(() => setToast(null), 3000)
+                  } catch (err) {
+                    setToast({ type: 'error', msg: err instanceof Error ? err.message : 'Erro ao salvar configurações do Facebook Pixel.' })
+                    setTimeout(() => setToast(null), 3000)
+                  } finally {
+                    setFacebookPixelSaving(false)
+                  }
+                }}
+                disabled={facebookPixelSaving}
+                className="inline-flex items-center gap-2 px-4 py-2 text-sm font-medium rounded-lg bg-brand-primary text-white hover:bg-brand-primary/90 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
+              >
+                {facebookPixelSaving ? 'Salvando...' : 'Salvar configurações do Pixel'}
+              </button>
+            </div>
+          </section>
+        )
     }
   }
 
@@ -1682,12 +2233,6 @@ export function ConfiguracoesClient({ initial, initialAI, initialTelegram, initi
 
   return (
     <div>
-      <div className="flex items-center justify-end mb-8">
-        <Button onClick={handleSave} loading={saving}>
-          Salvar alterações
-        </Button>
-      </div>
-
       {toast && (
         <div
           className={`mb-6 px-4 py-3 rounded-lg text-sm ${
@@ -1724,11 +2269,11 @@ export function ConfiguracoesClient({ initial, initialAI, initialTelegram, initi
         <div className="flex-1 min-w-0">{renderContent()}</div>
       </div>
 
-      <div className="mt-8 flex justify-end">
+      <AdminFormActions>
         <Button onClick={handleSave} loading={saving}>
           Salvar alterações
         </Button>
-      </div>
+      </AdminFormActions>
     </div>
   )
 }

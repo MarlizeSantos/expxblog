@@ -29,6 +29,7 @@ const createSchema = z.object({
   excerpt: z.string().default(''),
   cover_image: z.string().url().or(z.string().startsWith('/uploads/')).optional().nullable(),
   status: z.enum(['draft', 'published']).default('draft'),
+  author_name: z.string().max(255).optional().nullable(),
   category_ids: z.array(z.number().int().positive()).optional(),
   tag_ids: z.array(z.number().int().positive()).optional(),
 })

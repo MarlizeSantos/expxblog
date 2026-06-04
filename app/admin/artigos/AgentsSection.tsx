@@ -1,5 +1,5 @@
 'use client'
-import { useState, useEffect, useRef, useCallback } from 'react'
+import { useState, useEffect, useRef } from 'react'
 
 type AgentId =
   | 'headline'
@@ -74,7 +74,6 @@ export default function AgentsSection() {
   const [agentStatuses, setAgentStatuses] = useState<Record<AgentId, string>>({} as Record<AgentId, string>)
   const [logs, setLogs] = useState<PipelineEvent[]>([])
   const [publishStatus, setPublishStatus] = useState<'published' | 'draft'>('published')
-  const [sendNewsletter, setSendNewsletter] = useState(false)
   const logsEndRef = useRef<HTMLDivElement>(null)
 
   useEffect(() => {
@@ -240,7 +239,7 @@ export default function AgentsSection() {
     const res = await fetch('/api/admin/agents/run', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ publishStatus, sendNewsletter }),
+      body: JSON.stringify({ publishStatus }),
     })
 
     if (!res.body) { setRunning(false); return }
@@ -297,31 +296,17 @@ export default function AgentsSection() {
         <p className="text-sm text-gray-500 mb-4">Aciona todos os agentes em sequência para gerar e publicar um artigo automaticamente.</p>
 
         {/* Triggers */}
-        <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 mb-4">
-          <div>
-            <label className="block text-xs font-medium text-gray-700 mb-1">Publicar como</label>
-            <select
-              value={publishStatus}
-              onChange={(e) => setPublishStatus(e.target.value as 'published' | 'draft')}
-              className="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm"
-              disabled={running}
-            >
-              <option value="published">Publicado</option>
-              <option value="draft">Rascunho</option>
-            </select>
-          </div>
-          <div className="flex items-end">
-            <label className="flex items-center gap-2 text-sm text-gray-700 cursor-pointer">
-              <input
-                type="checkbox"
-                checked={sendNewsletter}
-                onChange={(e) => setSendNewsletter(e.target.checked)}
-                disabled={running}
-                className="rounded"
-              />
-              Enviar newsletter após publicar
-            </label>
-          </div>
+        <div className="mb-4 max-w-xs">
+          <label className="block text-xs font-medium text-gray-700 mb-1">Publicar como</label>
+          <select
+            value={publishStatus}
+            onChange={(e) => setPublishStatus(e.target.value as 'published' | 'draft')}
+            className="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm"
+            disabled={running}
+          >
+            <option value="published">Publicado</option>
+            <option value="draft">Rascunho</option>
+          </select>
         </div>
 
         {/* Agent progress */}

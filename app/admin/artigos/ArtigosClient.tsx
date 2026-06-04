@@ -13,7 +13,7 @@ import {
   IconConfiguracaoArtigos,
 } from '@/components/admin/icons/ExpxIcons'
 
-import { useState, useEffect, Suspense, KeyboardEvent, type ReactNode } from 'react'
+import { useState, useEffect, useCallback, Suspense, KeyboardEvent, type ReactNode } from 'react'
 import { usePageTitle } from '@/components/admin/AdminPageTitleContext'
 import { useSearchParams } from 'next/navigation'
 import Link from 'next/link'
@@ -27,6 +27,7 @@ import LogsSection from './LogsSection'
 import type { Post, Category, Tag } from '@/lib/admin-types'
 import type { ArticleGenerationConfig, ArticleVoiceTone, ArticleLanguage } from '@/lib/article-config-types'
 import { ARTICLE_CONFIG_DEFAULTS } from '@/lib/article-config-types'
+import { AdminFormActions } from '@/components/admin/AdminFormActions'
 
 type SectionId = 'lista' | 'temas' | 'briefing' | 'automacao' | 'rss' | 'fontes' | 'agentes' | 'categorias' | 'tags' | 'configuracao'
 
@@ -184,14 +185,21 @@ function ListaArtigos() {
   const [loading, setLoading] = useState(true)
   const [deleting, setDeleting] = useState<number | null>(null)
   const [showNewModal, setShowNewModal] = useState(false)
+  const [pendingDelete, setPendingDelete] = useState<Post | null>(null)
+  const [toast, setToast] = useState<{ type: 'success' | 'error'; msg: string } | null>(null)
   const searchParams = useSearchParams()
+
+  function showToast(type: 'success' | 'error', msg: string) {
+    setToast({ type, msg })
+    setTimeout(() => setToast(null), 3000)
+  }
 
   // Abre o modal de geração com IA quando chega via atalho do dashboard (?new=1)
   useEffect(() => {
     if (searchParams.get('new') === '1') setShowNewModal(true)
   }, [searchParams])
 
-  async function fetchPosts() {
+  const fetchPosts = useCallback(async () => {
     setLoading(true)
     try {
       const q = status !== 'all' ? `&status=${status}` : ''
@@ -202,16 +210,24 @@ function ListaArtigos() {
     } finally {
       setLoading(false)
     }
-  }
+  }, [status])
 
-  useEffect(() => { fetchPosts() }, [status])
+  useEffect(() => { fetchPosts() }, [fetchPosts])
 
-  async function handleDelete(id: number) {
-    if (!confirm('Tem certeza que deseja excluir este artigo?')) return
-    setDeleting(id)
+  async function confirmDelete(post: Post) {
+    setDeleting(post.id)
+    setPendingDelete(null)
     try {
-      await fetch(`/api/admin/posts/${id}`, { method: 'DELETE' })
-      await fetchPosts()
+      const res = await fetch(`/api/admin/posts/${post.id}`, { method: 'DELETE' })
+      if (!res.ok) {
+        const data = await res.json()
+        showToast('error', data.error ?? 'Erro ao excluir artigo')
+      } else {
+        showToast('success', 'Artigo excluído com sucesso!')
+        await fetchPosts()
+      }
+    } catch {
+      showToast('error', 'Erro ao excluir artigo')
     } finally {
       setDeleting(null)
     }
@@ -220,6 +236,43 @@ function ListaArtigos() {
 
   return (
     <>
+      {toast && (
+        <div className={`mb-4 px-4 py-3 rounded-lg text-sm border ${
+          toast.type === 'success'
+            ? 'bg-green-50 text-green-800 border-green-200'
+            : 'bg-red-50 text-red-800 border-red-200'
+        }`}>
+          {toast.msg}
+        </div>
+      )}
+
+      {pendingDelete && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40">
+          <div className="bg-white rounded-xl shadow-xl p-6 max-w-sm w-full mx-4">
+            <h3 className="text-base font-semibold text-neutral-900 mb-2">Excluir artigo</h3>
+            <p className="text-sm text-gray-600 mb-5">
+              Tem certeza que deseja excluir o artigo <strong>&ldquo;{pendingDelete.title}&rdquo;</strong>? Esta ação não pode ser desfeita.
+            </p>
+            <div className="flex justify-end gap-3">
+              <button
+                type="button"
+                onClick={() => setPendingDelete(null)}
+                className="px-4 py-2 text-sm font-medium rounded-lg border border-gray-300 text-gray-700 hover:bg-gray-50 transition-colors"
+              >
+                Cancelar
+              </button>
+              <button
+                type="button"
+                onClick={() => void confirmDelete(pendingDelete)}
+                className="px-4 py-2 text-sm font-medium rounded-lg bg-red-600 text-white hover:bg-red-700 transition-colors"
+              >
+                Excluir
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
       <div className="flex items-center justify-between mb-4">
         <span className="text-sm text-gray-500">{total} artigos</span>
         <button
@@ -273,7 +326,7 @@ function ListaArtigos() {
                         <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"/><path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"/></svg>
                       </Link>
                       <button
-                        onClick={() => handleDelete(post.id)}
+                        onClick={() => setPendingDelete(post)}
                         disabled={deleting === post.id}
                         title="Excluir"
                         className="text-red-600 hover:text-red-400 disabled:opacity-50"
@@ -418,7 +471,7 @@ function BriefingSection() {
         />
       </div>
 
-      <div className="flex justify-end">
+      <AdminFormActions>
         <button
           onClick={handleSave}
           disabled={saving}
@@ -426,7 +479,7 @@ function BriefingSection() {
         >
           {saving ? 'Salvando...' : 'Salvar Briefing'}
         </button>
-      </div>
+      </AdminFormActions>
     </section>
   )
 }
@@ -450,6 +503,7 @@ function TemasSection() {
   const [newTitle, setNewTitle] = useState('')
   const [newDescription, setNewDescription] = useState('')
   const [deleting, setDeleting] = useState<number | null>(null)
+  const [pendingDeleteTheme, setPendingDeleteTheme] = useState<ArticleTheme | null>(null)
   const [toast, setToast] = useState<{ type: 'success' | 'error'; msg: string } | null>(null)
 
   async function fetchThemes() {
@@ -530,11 +584,11 @@ function TemasSection() {
     }
   }
 
-  async function handleDelete(id: number) {
-    if (!confirm('Tem certeza que deseja excluir este tema?')) return
-    setDeleting(id)
+  async function confirmDeleteTheme(theme: ArticleTheme) {
+    setPendingDeleteTheme(null)
+    setDeleting(theme.id)
     try {
-      const res = await fetch(`/api/admin/themes?id=${id}`, { method: 'DELETE' })
+      const res = await fetch(`/api/admin/themes?id=${theme.id}`, { method: 'DELETE' })
       if (!res.ok) {
         const data = await res.json()
         throw new Error(data.error ?? 'Erro ao excluir')
@@ -672,7 +726,7 @@ function TemasSection() {
                     </svg>
                   </button>
                   <button
-                    onClick={() => handleDelete(theme.id)}
+                    onClick={() => setPendingDeleteTheme(theme)}
                     disabled={deleting === theme.id}
                     className="text-red-500 hover:text-red-700 p-1.5 rounded-md hover:bg-red-50 transition-colors disabled:opacity-50"
                     title="Excluir tema"
@@ -693,6 +747,33 @@ function TemasSection() {
               </div>
             </div>
           ))}
+        </div>
+      )}
+
+      {pendingDeleteTheme && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40">
+          <div className="bg-white rounded-xl shadow-xl p-6 max-w-sm w-full mx-4">
+            <h3 className="text-base font-semibold text-neutral-900 mb-2">Excluir tema</h3>
+            <p className="text-sm text-gray-600 mb-5">
+              Tem certeza que deseja excluir o tema <strong>&ldquo;{pendingDeleteTheme.title}&rdquo;</strong>? Esta ação não pode ser desfeita.
+            </p>
+            <div className="flex justify-end gap-3">
+              <button
+                type="button"
+                onClick={() => setPendingDeleteTheme(null)}
+                className="px-4 py-2 text-sm font-medium rounded-lg border border-gray-300 text-gray-700 hover:bg-gray-50 transition-colors"
+              >
+                Cancelar
+              </button>
+              <button
+                type="button"
+                onClick={() => void confirmDeleteTheme(pendingDeleteTheme)}
+                className="px-4 py-2 text-sm font-medium rounded-lg bg-red-600 text-white hover:bg-red-700 transition-colors"
+              >
+                Excluir
+              </button>
+            </div>
+          </div>
         </div>
       )}
 
@@ -1055,7 +1136,7 @@ function AutomacaoSection() {
           </div>
         </div>
 
-        <div className="flex items-center justify-between mt-6 pt-5 border-t border-gray-100">
+        <AdminFormActions align="start">
           <button
             onClick={handleRunNow}
             disabled={running || saving}
@@ -1081,11 +1162,11 @@ function AutomacaoSection() {
           <button
             onClick={handleSave}
             disabled={saving || running}
-            className="bg-brand-primary text-white px-6 py-2 rounded-lg text-sm font-medium hover:bg-brand-primary-dark transition-colors disabled:opacity-50"
+            className="ml-auto bg-brand-primary text-white px-6 py-2 rounded-lg text-sm font-medium hover:bg-brand-primary-dark transition-colors disabled:opacity-50"
           >
             {saving ? 'Salvando...' : 'Salvar Configuração'}
           </button>
-        </div>
+        </AdminFormActions>
       </div>
 
       {/* Execution log history */}
@@ -1184,6 +1265,13 @@ function CategoriasSection() {
   const [editing, setEditing] = useState<Category | null>(null)
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState('')
+  const [pendingDeleteCat, setPendingDeleteCat] = useState<Category | null>(null)
+  const [toast, setToast] = useState<{ type: 'success' | 'error'; msg: string } | null>(null)
+
+  function showToast(type: 'success' | 'error', msg: string) {
+    setToast({ type, msg })
+    setTimeout(() => setToast(null), 3000)
+  }
 
   async function fetchCategories() {
     const res = await fetch('/api/admin/categories')
@@ -1212,19 +1300,60 @@ function CategoriasSection() {
     finally { setLoading(false) }
   }
 
-  async function handleDelete(id: number) {
-    if (!confirm('Excluir esta categoria?')) return
-    const res = await fetch(`/api/admin/categories/${id}`, { method: 'DELETE' })
+  async function confirmDeleteCat(cat: Category) {
+    setPendingDeleteCat(null)
+    const res = await fetch(`/api/admin/categories/${cat.id}`, { method: 'DELETE' })
     const data = await res.json()
-    if (!res.ok) { alert(data.error); return }
+    if (!res.ok) {
+      showToast('error', data.error ?? 'Erro ao excluir categoria')
+      return
+    }
+    showToast('success', `Categoria "${cat.name}" excluída com sucesso!`)
     await fetchCategories()
   }
 
   return (
     <div>
+      {toast && (
+        <div className={`mb-4 px-4 py-3 rounded-lg text-sm border ${
+          toast.type === 'success'
+            ? 'bg-green-50 text-green-800 border-green-200'
+            : 'bg-red-50 text-red-800 border-red-200'
+        }`}>
+          {toast.msg}
+        </div>
+      )}
+
+      {pendingDeleteCat && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40">
+          <div className="bg-white rounded-xl shadow-xl p-6 max-w-sm w-full mx-4">
+            <h3 className="text-base font-semibold text-neutral-900 mb-2">Excluir categoria</h3>
+            <p className="text-sm text-gray-600 mb-5">
+              Tem certeza que deseja excluir a categoria <strong>&ldquo;{pendingDeleteCat.name}&rdquo;</strong>? Esta ação não pode ser desfeita.
+            </p>
+            <div className="flex justify-end gap-3">
+              <button
+                type="button"
+                onClick={() => setPendingDeleteCat(null)}
+                className="px-4 py-2 text-sm font-medium rounded-lg border border-gray-300 text-gray-700 hover:bg-gray-50 transition-colors"
+              >
+                Cancelar
+              </button>
+              <button
+                type="button"
+                onClick={() => void confirmDeleteCat(pendingDeleteCat)}
+                className="px-4 py-2 text-sm font-medium rounded-lg bg-red-600 text-white hover:bg-red-700 transition-colors"
+              >
+                Excluir
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
       <div className="bg-white rounded-xl border border-gray-200 p-5 mb-6">
         <h2 className="font-medium text-neutral-900 mb-4">{editing ? 'Editar Categoria' : 'Nova Categoria'}</h2>
-        <div className="flex gap-3 items-end">
+        <div className="flex gap-3">
           <div className="flex-1">
             <label className="block text-sm text-gray-600 mb-1">Nome</label>
             <input value={name} onChange={e => setName(e.target.value)}
@@ -1235,10 +1364,12 @@ function CategoriasSection() {
             <input value={description} onChange={e => setDescription(e.target.value)}
               className="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-brand-primary" />
           </div>
-          <Button onClick={handleSave} loading={loading}>{editing ? 'Salvar' : 'Adicionar'}</Button>
-          {editing && <Button variant="ghost" onClick={() => { setEditing(null); setName(''); setDescription('') }}>Cancelar</Button>}
         </div>
         {error && <p className="text-red-600 text-sm mt-2">{error}</p>}
+        <AdminFormActions>
+          {editing && <Button variant="ghost" onClick={() => { setEditing(null); setName(''); setDescription('') }}>Cancelar</Button>}
+          <Button onClick={handleSave} loading={loading}>{editing ? 'Salvar' : 'Adicionar'}</Button>
+        </AdminFormActions>
       </div>
 
       <div className="bg-white rounded-xl border border-gray-200 overflow-hidden">
@@ -1260,7 +1391,7 @@ function CategoriasSection() {
                 <td className="px-4 py-3">
                   <div className="flex gap-2 justify-end">
                     <button onClick={() => { setEditing(cat); setName(cat.name); setDescription(cat.description ?? '') }} className="text-brand-primary hover:underline text-sm">Editar</button>
-                    <button onClick={() => handleDelete(cat.id)} className="text-red-600 hover:underline text-sm">Excluir</button>
+                    <button onClick={() => setPendingDeleteCat(cat)} className="text-red-600 hover:underline text-sm">Excluir</button>
                   </div>
                 </td>
               </tr>
@@ -1276,6 +1407,13 @@ function TagsSection() {
   const [tags, setTags] = useState<Tag[]>([])
   const [input, setInput] = useState('')
   const [error, setError] = useState('')
+  const [pendingDeleteTag, setPendingDeleteTag] = useState<Tag | null>(null)
+  const [toast, setToast] = useState<{ type: 'success' | 'error'; msg: string } | null>(null)
+
+  function showToast(type: 'success' | 'error', msg: string) {
+    setToast({ type, msg })
+    setTimeout(() => setToast(null), 3000)
+  }
 
   async function fetchTags() {
     const res = await fetch('/api/admin/tags')
@@ -1299,9 +1437,15 @@ function TagsSection() {
     await fetchTags()
   }
 
-  async function handleDelete(id: number) {
-    if (!confirm('Excluir esta tag?')) return
-    await fetch(`/api/admin/tags/${id}`, { method: 'DELETE' })
+  async function confirmDeleteTag(tag: Tag) {
+    setPendingDeleteTag(null)
+    const res = await fetch(`/api/admin/tags/${tag.id}`, { method: 'DELETE' })
+    if (!res.ok) {
+      const data = await res.json()
+      showToast('error', data.error ?? 'Erro ao excluir tag')
+      return
+    }
+    showToast('success', `Tag "${tag.name}" excluída com sucesso!`)
     await fetchTags()
   }
 
@@ -1311,6 +1455,43 @@ function TagsSection() {
 
   return (
     <div>
+      {toast && (
+        <div className={`mb-4 px-4 py-3 rounded-lg text-sm border ${
+          toast.type === 'success'
+            ? 'bg-green-50 text-green-800 border-green-200'
+            : 'bg-red-50 text-red-800 border-red-200'
+        }`}>
+          {toast.msg}
+        </div>
+      )}
+
+      {pendingDeleteTag && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40">
+          <div className="bg-white rounded-xl shadow-xl p-6 max-w-sm w-full mx-4">
+            <h3 className="text-base font-semibold text-neutral-900 mb-2">Excluir tag</h3>
+            <p className="text-sm text-gray-600 mb-5">
+              Tem certeza que deseja excluir a tag <strong>&ldquo;{pendingDeleteTag.name}&rdquo;</strong>? Esta ação não pode ser desfeita.
+            </p>
+            <div className="flex justify-end gap-3">
+              <button
+                type="button"
+                onClick={() => setPendingDeleteTag(null)}
+                className="px-4 py-2 text-sm font-medium rounded-lg border border-gray-300 text-gray-700 hover:bg-gray-50 transition-colors"
+              >
+                Cancelar
+              </button>
+              <button
+                type="button"
+                onClick={() => void confirmDeleteTag(pendingDeleteTag)}
+                className="px-4 py-2 text-sm font-medium rounded-lg bg-red-600 text-white hover:bg-red-700 transition-colors"
+              >
+                Excluir
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
       <div className="bg-white rounded-xl border border-gray-200 p-5 mb-6">
         <div className="flex gap-3">
           <input
@@ -1330,11 +1511,13 @@ function TagsSection() {
           <span key={tag.id} className="inline-flex items-center gap-1.5 bg-gray-100 text-gray-700 px-3 py-1.5 rounded-full text-sm">
             {tag.name}
             <button
-              onClick={() => handleDelete(tag.id)}
+              onClick={() => setPendingDeleteTag(tag)}
               aria-label={`Excluir tag ${tag.name}`}
               className="text-gray-400 hover:text-red-600 transition-colors ml-0.5"
             >
-              ×
+              <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.75" strokeLinecap="round" strokeLinejoin="round">
+                <line x1="18" y1="6" x2="6" y2="18" /><line x1="6" y1="6" x2="18" y2="18" />
+              </svg>
             </button>
           </span>
         ))}
@@ -1506,7 +1689,7 @@ function ConfiguracaoArtigosSection() {
         </div>
       </div>
 
-      <div className="flex justify-end mt-6 pt-5 border-t border-gray-100">
+      <AdminFormActions>
         <button
           onClick={handleSave}
           disabled={saving}
@@ -1514,7 +1697,7 @@ function ConfiguracaoArtigosSection() {
         >
           {saving ? 'Salvando...' : 'Salvar Configurações'}
         </button>
-      </div>
+      </AdminFormActions>
     </section>
   )
 }

@@ -117,6 +117,8 @@ const EXPECTED_TABLES = [
   'source_crawler_items',
   'ai_request_logs',
   'webhooks',
+  'chat_conversations',
+  'chat_messages',
 ] as const
 
 /** Retorna quais tabelas esperadas ESTÃO FALTANDO no banco. */
@@ -147,6 +149,7 @@ const EXPECTED_COLUMNS = [
   { table: 'posts', column: 'newsletter_sent_at' },
   { table: 'newsletter_subscribers', column: 'consent_at' },
   { table: 'newsletter_subscribers', column: 'consent_text_version' },
+  { table: 'posts', column: 'author_name' },
 ] as const
 
 /** Retorna true se alguma coluna crítica estiver faltando no banco. */

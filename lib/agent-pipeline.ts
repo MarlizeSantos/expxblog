@@ -1,5 +1,5 @@
 // lib/agent-pipeline.ts
-import { getAIApiKey, callOpenRouter, getAIModelFromDB } from '@/lib/ai'
+import { getAIApiKey, callOpenRouter, getTextModel } from '@/lib/ai'
 import { runHeadlineAgent } from '@/lib/agents/headline'
 import { runResearcherAgent } from '@/lib/agents/researcher'
 import { runAnalystAgent } from '@/lib/agents/analyst'
@@ -46,7 +46,7 @@ ${issues.map((i, n) => `${n + 1}. ${i}`).join('\n')}`
   try {
     const resp = await callOpenRouter(
       {
-        model: await getAIModelFromDB('content_generation'),
+        model: await getTextModel(),
         messages: [{ role: 'user', content: prompt }],
         temperature: 0.1,
         max_tokens: 400,
