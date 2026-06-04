@@ -18,8 +18,12 @@ export async function POST() {
 
   const stream = new ReadableStream({
     async start(controller) {
+      let closed = false
+      const close = () => {
+        if (!closed) { closed = true; controller.close() }
+      }
       const send = (event: MigrateEvent) => {
-        controller.enqueue(encoder.encode(makeEvent(event)))
+        if (!closed) controller.enqueue(encoder.encode(makeEvent(event)))
       }
 
       try {
@@ -27,7 +31,7 @@ export async function POST() {
 
         if (pending.length === 0) {
           send({ type: 'complete', message: 'Banco já está atualizado.' })
-          controller.close()
+          close()
           return
         }
 
@@ -41,7 +45,7 @@ export async function POST() {
           } catch (err) {
             const message = err instanceof Error ? err.message : String(err)
             send({ type: 'error', name: tag, message })
-            controller.close()
+            close()
             return
           }
         }
@@ -51,7 +55,7 @@ export async function POST() {
         const message = err instanceof Error ? err.message : String(err)
         send({ type: 'error', name: '', message })
       } finally {
-        controller.close()
+        close()
       }
     },
   })
