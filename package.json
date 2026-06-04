@@ -10,7 +10,8 @@
     "db:push": "drizzle-kit push",
     "db:studio": "drizzle-kit studio",
     "db:seed": "tsx scripts/seed.ts",
-    "migrate:images": "tsx scripts/migrate-images.ts"
+    "migrate:images": "tsx scripts/migrate-images.ts",
+    "prepare": "husky"
   },
   "dependencies": {
     "@supabase/supabase-js": "^2.106.1",
@@ -46,6 +47,7 @@
     "drizzle-kit": "^0.31.10",
     "eslint": "^8.0.0",
     "eslint-config-next": "^14.2.0",
+    "husky": "^9.1.7",
     "postcss": "^8.4.0",
     "tailwindcss": "^3.4.0",
     "tsx": "^4.22.3",
