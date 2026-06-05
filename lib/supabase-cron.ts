@@ -83,7 +83,7 @@ export const CRON_DEFS: Record<string, CronDef> = {
 }
 
 /** Jobs de versões antigas que devem ser removidos para evitar duplicidade. */
-const LEGACY_JOB_NAMES = ['automation-every-15min']
+const LEGACY_JOB_NAMES = ['automation-every-15min', 'automation-check-every-5min']
 
 /** Todos os jobs gerenciados (canônicos + legados). */
 const ALL_MANAGED_JOBS = [

@@ -763,8 +763,6 @@ function TemasSection() {
 }
 
 const INTERVAL_OPTIONS = [
-  { value: 5 / 60, label: 'A cada 5 minutos' },
-  { value: 10 / 60, label: 'A cada 10 minutos' },
   { value: 15 / 60, label: 'A cada 15 minutos' },
   { value: 30 / 60, label: 'A cada 30 minutos' },
   { value: 1, label: 'A cada 1 hora' },

@@ -37,8 +37,8 @@ select cron.schedule(
 
 -- ─── 3. Cron: automação de geração de artigos a cada 15 minutos ──────────────
 -- O endpoint verifica internamente se já é hora de executar conforme
--- o intervalo configurado no admin. Rodar a cada 15 minutos garante
--- granularidade adequada para intervalos curtos (ex: a cada 30 minutos).
+-- o intervalo configurado no admin. O intervalo mínimo permitido no admin é
+-- 15 minutos, então rodar a cada 15 minutos cobre todos os intervalos.
 
 select cron.schedule(
   'automation-check-every-15min',

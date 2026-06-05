@@ -36,7 +36,7 @@ export async function PUT(request: NextRequest) {
 
     const config = await getOrCreate()
     const now = new Date()
-    const hours = Math.max(5 / 60, Math.min(168, Number(interval_hours) || 24))
+    const hours = Math.max(15 / 60, Math.min(168, Number(interval_hours) || 24))
 
     // Reset to now only on false→true transition so the cron fires soon; preserve schedule on true→true
     const nextRun = enabled && !config.enabled ? now : config.next_run_at
