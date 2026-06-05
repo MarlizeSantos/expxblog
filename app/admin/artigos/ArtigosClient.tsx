@@ -247,7 +247,7 @@ function ListaArtigos() {
             <tbody className="divide-y divide-gray-100">
               {posts.map((post) => (
                 <tr key={post.id} className="hover:bg-gray-50 transition-colors">
-                  <td className="px-4 py-3 font-medium text-neutral-900 max-w-xs truncate">{post.title}</td>
+                  <td className="px-4 py-3 max-w-xs"><div className="flex items-center gap-1.5 min-w-0"><span className="font-mono text-xs text-gray-400 shrink-0">#{post.id}</span><span className="font-medium text-neutral-900 truncate">{post.title}</span></div></td>
                   <td className="px-4 py-3">
                     <Badge variant={post.status as 'draft' | 'published'}>
                       {{ draft: 'Rascunho', published: 'Publicado' }[post.status]}
